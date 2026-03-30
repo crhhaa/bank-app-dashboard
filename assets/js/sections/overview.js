@@ -93,7 +93,7 @@ export function renderOverview(summaryBank, summaryMonthly, { selectedBanks, pla
 
   const cards = [
     {
-      label: "整體平均評分",
+      label: "整體平均本月評分",
       value: yuantaLatestAvgRating != null ? yuantaLatestAvgRating.toFixed(2) : yuantaStats.avgRating.toFixed(2),
       sub: compAvgRating ? `競品均 ${compAvgRating.toFixed(2)}` : "",
       delta: compAvgRating && yuantaLatestAvgRating != null ? yuantaLatestAvgRating - compAvgRating : (compAvgRating ? yuantaStats.avgRating - compAvgRating : null),
@@ -101,7 +101,7 @@ export function renderOverview(summaryBank, summaryMonthly, { selectedBanks, pla
       icon: "⭐",
     },
     {
-      label: "iOS 評分",
+      label: "iOS 本月評分",
       value: yuantaIOS ? yuantaIOS.avgRating.toFixed(2) : "—",
       sub: yuantaIOS ? `${yuantaIOS.totalReviews} 則評論` : "",
       delta: null,
@@ -109,7 +109,7 @@ export function renderOverview(summaryBank, summaryMonthly, { selectedBanks, pla
       icon: "",
     },
     {
-      label: "Android 評分",
+      label: "Android 本月評分",
       value: yuantaAndroid ? yuantaAndroid.avgRating.toFixed(2) : "—",
       sub: yuantaAndroid ? `${yuantaAndroid.totalReviews} 則評論` : "",
       delta: null,
@@ -117,7 +117,7 @@ export function renderOverview(summaryBank, summaryMonthly, { selectedBanks, pla
       icon: "",
     },
     {
-      label: "開發者回覆率",
+      label: "開發者本月回覆率",
       value: (yuantaStats.replyRate * 100).toFixed(1) + "%",
       sub: compAvgReplyRate ? `競品均 ${(compAvgReplyRate * 100).toFixed(1)}%` : "",
       delta: compAvgReplyRate ? yuantaStats.replyRate - compAvgReplyRate : null,
@@ -125,7 +125,7 @@ export function renderOverview(summaryBank, summaryMonthly, { selectedBanks, pla
       icon: "💬",
     },
     {
-      label: "平均回覆天數",
+      label: "本月平均回覆天數",
       value: yuantaStats.avgReplyDays ? yuantaStats.avgReplyDays.toFixed(1) : "—",
       sub: compAvgReplyDays ? `競品均 ${compAvgReplyDays.toFixed(1)} 天` : "",
       delta: compAvgReplyDays && yuantaStats.avgReplyDays
