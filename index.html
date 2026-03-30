@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>元大銀行 App 競爭情報儀表板</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <!-- PapaParse (CSV parsing) -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <!-- Day.js -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+
+  <!-- Custom styles -->
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="spinner mb-4"></div>
+  <p style="color:var(--text-secondary);font-size:0.875rem">載入資料中...</p>
+</div>
+
+<div id="app">
+
+  <!-- ═══════════════════════════════════════════════════
+       SIDEBAR
+  ═══════════════════════════════════════════════════ -->
+  <aside id="sidebar">
+    <!-- Logo / Brand -->
+    <div class="px-4 py-4 border-b border-gray-800">
+      <div style="color:#f97316;font-weight:700;font-size:0.875rem;line-height:1.25">元大銀行</div>
+      <div style="color:rgba(255,255,255,0.65);font-size:0.75rem;margin-top:0.125rem">App 戰情室</div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-section">
+      <h3>快速導覽</h3>
+      <a class="nav-link" onclick="scrollToSection('kpi')">📊 核心指標</a>
+      <a class="nav-link" onclick="scrollToSection('trend')">📈 評分趨勢</a>
+      <a class="nav-link" onclick="scrollToSection('compare')">🏆 競品排名</a>
+      <a class="nav-link" onclick="scrollToSection('version')">🔄 版本影響</a>
+      <a class="nav-link" onclick="scrollToSection('keywords')">💬 用戶聲音</a>
+      <a class="nav-link" onclick="scrollToSection('response')">⚡ 回覆表現</a>
+      <a class="nav-link" onclick="scrollToSection('alerts')">📋 評論列表</a>
+    </nav>
+
+    <!-- Platform Filter -->
+    <div class="sidebar-section">
+      <h3>平台篩選</h3>
+      <button class="filter-btn active-platform" data-platform="all">全部平台</button>
+      <button class="filter-btn" data-platform="App Store">🍎 App Store (iOS)</button>
+      <button class="filter-btn" data-platform="Google Play">🤖 Google Play (Android)</button>
+    </div>
+
+
+    <!-- Bank Filters -->
+    <div class="sidebar-section flex-1">
+      <div style="display:flex;align-items:center;margin-bottom:0.5rem;">
+        <h3 style="margin:0 0 0 0.5rem;flex:1">銀行篩選</h3>
+        <button id="select-all-banks" style="font-size:0.65rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent);background:none;border:none;cursor:pointer;padding:0 0.5rem 0 0;">全不選</button>
+      </div>
+      <div id="bank-filters" class="space-y-0.5"></div>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════
+       MAIN CONTENT
+  ═══════════════════════════════════════════════════ -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Header -->
+    <header id="top-header">
+      <h1>元大銀行 App 戰情室</h1>
+      <div id="last-updated" class="text-right">
+        <div style="color:rgba(255,255,255,0.7);font-size:0.75rem">資料更新時間</div>
+        <div id="update-time" style="color:rgba(255,255,255,0.9);font-size:0.75rem;font-weight:500">載入中...</div>
+      </div>
+    </header>
+
+    <!-- Page content -->
+    <main id="main-content">
+
+      <!-- ── Section 1: KPI Scorecards ── -->
+      <section class="section" id="kpi">
+        <div class="section-header">
+          <h2 class="section-title">核心指標</h2>
+          <span class="section-badge">元大 vs 競品均值</span>
+        </div>
+        <div id="section-overview">
+          <!-- Rendered by overview.js -->
+          <div class="kpi-card skeleton"></div>
+          <div class="kpi-card skeleton"></div>
+          <div class="kpi-card skeleton"></div>
+          <div class="kpi-card skeleton"></div>
+          <div class="kpi-card skeleton"></div>
+        </div>
+      </section>
+
+      <!-- ── Section 2: Rating Trend ── -->
+      <section class="section" id="trend">
+        <div class="section-header">
+          <h2 class="section-title">評分趨勢</h2>
+          <span class="section-badge">月平均評分比較</span>
+        </div>
+        <div class="chart-card">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:0.25rem;">
+            <button id="btn-cancel-trend" style="display:none;font-size:0.72rem;padding:0.2rem 0.65rem;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-secondary);">✕ 取消選取</button>
+          </div>
+          <div class="chart-wrap" style="height: 340px;">
+            <canvas id="chart-rating-trend"></canvas>
+          </div>
+          <div id="trend-data-note" style="margin-top:0.5rem;font-size:0.72rem;color:var(--text-secondary)"></div>
+        </div>
+      </section>
+
+      <!-- ── Section 3: Competitive Ranking ── -->
+      <section class="section" id="compare">
+        <div class="section-header">
+          <h2 class="section-title">競品排名</h2>
+          <span class="section-badge">各銀行 App 評分比較</span>
+        </div>
+        <div class="col-2" style="align-items: start;">
+          <!-- Left: charts side by side -->
+          <div class="chart-card">
+            <h3>App Store (iOS)</h3>
+            <div class="chart-wrap" style="height: 380px;">
+              <canvas id="chart-rank-ios"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3>Google Play (Android)</h3>
+            <div class="chart-wrap" style="height: 380px;">
+              <canvas id="chart-rank-android"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Section 4: Version Impact ── -->
+      <section class="section" id="version">
+        <div class="section-header">
+          <h2 class="section-title">版本發布影響</h2>
+          <span class="section-badge">更新前後評分變化</span>
+        </div>
+        <div class="chart-card mb-4">
+          <div class="control-row" style="margin-bottom:0.75rem">
+            <span class="control-label">選擇銀行：</span>
+            <select id="version-bank-select"></select>
+          </div>
+          <h3>評分走勢 ＋ 版本發布標記（△綠=評分上升 △紅=下降）<span style="font-size:0.75rem;font-weight:400;color:#64748b;margin-left:0.5rem">版本標記僅 iOS（App Store 才有歷代版本紀錄）</span></h3>
+          <div class="chart-wrap" style="height: 280px;">
+            <canvas id="chart-version-impact"></canvas>
+          </div>
+          <div id="version-data-note" style="margin-top:0.5rem;font-size:0.72rem;color:var(--text-secondary)"></div>
+        </div>
+        <!-- App Store 版本發布明細 -->
+        <div class="chart-card mb-4">
+          <h3>版本發布明細 — App Store (iOS)</h3>
+          <div class="overflow-x-auto">
+            <table class="data-table w-full">
+              <thead>
+                <tr>
+                  <th>發布日期</th>
+                  <th>版本號</th>
+                  <th>更新說明</th>
+                  <th class="text-right">發布前評分</th>
+                  <th class="text-right">發布後評分</th>
+                  <th class="text-right">變化</th>
+                </tr>
+              </thead>
+              <tbody id="version-tbody-ios"></tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Google Play 版本發布明細 -->
+        <div class="chart-card">
+          <h3>版本發布明細 — Google Play (Android)</h3>
+          <p style="font-size:0.75rem;color:#d97706;margin-bottom:0.5rem">⚠️ Google Play 僅能爬取最近版本，無法取得歷代版本紀錄</p>
+          <div class="overflow-x-auto">
+            <table class="data-table w-full">
+              <thead>
+                <tr>
+                  <th>發布日期</th>
+                  <th>版本號</th>
+                  <th>更新說明</th>
+                  <th class="text-right">發布前評分</th>
+                  <th class="text-right">發布後評分</th>
+                  <th class="text-right">變化</th>
+                </tr>
+              </thead>
+              <tbody id="version-tbody-android"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Section 5: Voice Analysis ── -->
+      <section class="section" id="keywords">
+        <div class="section-header">
+          <h2 class="section-title">用戶聲音分析</h2>
+          <span class="section-badge">分類雷達圖 ＋ 留言列表</span>
+        </div>
+        <!-- 銀行選取列（最多 5 家含元大）-->
+        <div class="chart-card mb-4" id="voice-bank-selector-card">
+          <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.5rem">比較銀行（元大固定，最多再選 4 家）：</div>
+          <div id="voice-bank-pills" style="display:flex;flex-wrap:wrap;gap:0.4rem"></div>
+        </div>
+        <!-- 兩張雷達圖並列 -->
+        <div class="col-2" style="align-items:start">
+          <div class="chart-card">
+            <h3 style="color:#dc2626">😤 痛點分佈（負評中各類別比例）</h3>
+            <div class="chart-wrap" style="height:380px">
+              <canvas id="chart-voice-neg"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3 style="color:#16a34a">😊 優勢分佈（正評中各類別比例）</h3>
+            <div class="chart-wrap" style="height:380px">
+              <canvas id="chart-voice-pos"></canvas>
+            </div>
+          </div>
+        </div>
+        <!-- 分類快捷按鈕 -->
+        <div class="chart-card mt-4">
+          <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.5rem">點擊分類查看相關留言：</div>
+          <div id="voice-category-pills" style="display:flex;flex-wrap:wrap;gap:0.4rem"></div>
+        </div>
+        <!-- 留言列表 -->
+        <div class="chart-card mt-4" id="voice-reviews-card" style="display:none">
+          <div style="display:flex;align-items:center;margin-bottom:0.75rem;gap:0.5rem">
+            <h3 id="voice-reviews-title" style="margin:0;flex:1">留言列表</h3>
+            <span id="voice-reviews-count" style="font-size:0.75rem;color:var(--text-secondary)"></span>
+            <button id="voice-reviews-close" style="font-size:0.75rem;padding:0.2rem 0.65rem;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-secondary)">✕ 關閉</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="data-table w-full">
+              <thead>
+                <tr>
+                  <th>日期</th>
+                  <th>銀行／平台</th>
+                  <th>評分</th>
+                  <th>分類</th>
+                  <th>評論內容</th>
+                </tr>
+              </thead>
+              <tbody id="voice-reviews-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Section 6: Response Rate ── -->
+      <section class="section" id="response">
+        <div class="section-header">
+          <h2 class="section-title">開發者回覆表現</h2>
+          <span class="section-badge">回覆率 ＆ 回覆速度</span>
+        </div>
+        <div class="col-2">
+          <div class="chart-card">
+            <h3>回覆率比較</h3>
+            <div class="chart-wrap" style="height: 340px;">
+              <canvas id="chart-response-rate"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div style="display:flex;align-items:center;margin-bottom:0.25rem;">
+              <h3 style="flex:1;margin:0">月平均回覆天數趨勢（紅線 = 3天基準）</h3>
+              <button id="btn-cancel-speed" style="display:none;font-size:0.72rem;padding:0.2rem 0.65rem;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-secondary);">✕ 取消選取</button>
+            </div>
+            <div class="chart-wrap" style="height: 340px;">
+              <canvas id="chart-response-speed"></canvas>
+            </div>
+            <div id="speed-data-note" style="margin-top:0.5rem;font-size:0.72rem;color:var(--text-secondary)"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Section 7: Alert Reviews ── -->
+      <section class="section" id="alerts">
+        <div class="section-header">
+          <h2 class="section-title">評論列表</h2>
+          <span class="section-badge">近期評論（含開發者回覆）</span>
+        </div>
+        <div class="chart-card">
+          <div class="control-row" style="flex-wrap:wrap;gap:0.5rem">
+            <span class="control-label">銀行：</span>
+            <select id="alert-bank-select"></select>
+            <span class="control-label ml-2">平台：</span>
+            <select id="alert-platform-select" onchange="window._refreshAlerts()">
+              <option value="all">全部平台</option>
+              <option value="App Store">🍎 App Store</option>
+              <option value="Google Play">🤖 Google Play</option>
+            </select>
+            <span class="control-label ml-2">分類：</span>
+            <select id="alert-category-select" onchange="window._refreshAlerts()">
+              <option value="all">全部分類</option>
+              <option value="登入與認證">登入與認證</option>
+              <option value="轉帳與交易">轉帳與交易</option>
+              <option value="介面體驗">介面體驗</option>
+              <option value="系統穩定性">系統穩定性</option>
+              <option value="客服支援">客服支援</option>
+              <option value="功能完整性">功能完整性</option>
+              <option value="速度效能">速度效能</option>
+            </select>
+            <span class="control-label ml-2">星等：</span>
+            <label class="star-check-label"><input type="checkbox" class="star-filter" value="1" onchange="window._refreshAlerts()" checked> 1★</label>
+            <label class="star-check-label"><input type="checkbox" class="star-filter" value="2" onchange="window._refreshAlerts()" checked> 2★</label>
+            <label class="star-check-label"><input type="checkbox" class="star-filter" value="3" onchange="window._refreshAlerts()"> 3★</label>
+            <label class="star-check-label"><input type="checkbox" class="star-filter" value="4" onchange="window._refreshAlerts()"> 4★</label>
+            <label class="star-check-label"><input type="checkbox" class="star-filter" value="5" onchange="window._refreshAlerts()"> 5★</label>
+            <label class="flex items-center gap-1 ml-2 cursor-pointer" style="font-size:0.75rem;color:var(--text-secondary)">
+              <input type="checkbox" id="alert-show-all" onchange="window._refreshAlerts()" />
+              顯示所有選中銀行
+            </label>
+            <span class="ml-auto" style="font-size:0.75rem;color:var(--text-secondary)">顯示 <span id="alert-count">0</span> 則（最多100）</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="data-table w-full">
+              <thead>
+                <tr>
+                  <th>日期</th>
+                  <th>銀行</th>
+                  <th>平台</th>
+                  <th>評分</th>
+                  <th>分類</th>
+                  <th>評論內容</th>
+                  <th>回覆狀態</th>
+                </tr>
+              </thead>
+              <tbody id="alert-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div><!-- end main area -->
+</div><!-- end #app -->
+
+<!-- ── Main JS entry point ── -->
+<script type="module">
+import { ALL_BANKS, YUANTA } from "./assets/js/config.js";
+import { loadSummaryData, loadReviews, loadVoiceReviews } from "./assets/js/dataLoader.js";
+import { state, initFilters, onFilterChange, updateBankDataCoverage } from "./assets/js/filters.js";
+import { renderOverview } from "./assets/js/sections/overview.js";
+import { renderRatingTrend } from "./assets/js/sections/ratingTrend.js";
+import { renderPlatformCompare } from "./assets/js/sections/platformCompare.js";
+import { renderResponseRate } from "./assets/js/sections/responseRate.js";
+import { renderVersionImpact } from "./assets/js/sections/versionImpact.js";
+import { renderKeywords, initVoiceReviews } from "./assets/js/sections/keywords.js";
+import { initAlertReviews, renderAlertReviews } from "./assets/js/sections/alertReviews.js";
+
+let globalData = null;
+
+function renderAll(filterState) {
+  if (!globalData) return;
+  const { summaryBank, summaryMonthly, keywords, versionImpact, metadata, voiceSummary } = globalData;
+  renderOverview(summaryBank, summaryMonthly, filterState);
+  renderRatingTrend(summaryMonthly, versionImpact, filterState, metadata);
+  renderPlatformCompare(summaryBank, summaryMonthly, filterState);
+  renderResponseRate(summaryBank, summaryMonthly, filterState, metadata);
+  renderVersionImpact(versionImpact, summaryMonthly, filterState, metadata);
+  renderKeywords(voiceSummary, filterState);
+  renderAlertReviews(filterState);
+}
+
+// Expose for inline onchange handlers
+window._refreshAlerts = () => renderAlertReviews(state);
+
+// Version bank selector re-render
+document.addEventListener("version-bank-change", () => {
+  if (!globalData) return;
+  const { versionImpact, summaryMonthly, metadata } = globalData;
+  renderVersionImpact(versionImpact, summaryMonthly, state, metadata);
+});
+
+async function init() {
+  try {
+    // Load summary data first (fast)
+    const data = await loadSummaryData();
+    globalData = data;
+
+    // Update last-updated timestamp
+    if (data.metadata && data.metadata[0]) {
+      const ts = data.metadata[0].last_run_timestamp;
+      document.getElementById("update-time").textContent = ts
+        ? dayjs(ts).format("YYYY-MM-DD HH:mm")
+        : "未知";
+    }
+
+    // Init filters
+    initFilters(ALL_BANKS);
+    onFilterChange((newState) => renderAll(newState));
+
+    // Show data coverage period in sidebar bank labels
+    updateBankDataCoverage(data.summaryMonthly);
+
+    // First render
+    renderAll(state);
+
+    // Hide loading overlay
+    const overlay = document.getElementById("loading-overlay");
+    overlay.style.opacity = "0";
+    setTimeout(() => overlay.remove(), 400);
+
+    // Load raw reviews in background (for alerts section)
+    loadReviews().then((reviews) => {
+      initAlertReviews(reviews);
+      renderAlertReviews(state);
+    }).catch((err) => {
+      console.warn("Could not load reviews tab:", err);
+      const tbody = document.getElementById("alert-tbody");
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-sm" style="color:var(--text-secondary)">無法載入評論資料</td></tr>';
+    });
+
+    // Load voice-tagged reviews in background (for voice analysis section + review list categories)
+    loadVoiceReviews().then((voiceReviews) => {
+      initVoiceReviews(voiceReviews);
+      window._refreshAlerts(); // refresh alert list so category column populates
+    }).catch((err) => {
+      console.warn("Could not load voice_reviews tab:", err);
+    });
+
+  } catch (err) {
+    console.error("Failed to load data:", err);
+    const overlay = document.getElementById("loading-overlay");
+    overlay.innerHTML = `
+      <div style="color:#dc2626;text-align:center;padding:0 1.5rem">
+        <div style="font-size:1.5rem;margin-bottom:0.5rem">⚠️</div>
+        <p style="font-weight:600;margin-bottom:0.25rem;color:#1e293b">資料載入失敗</p>
+        <p style="font-size:0.875rem;color:#64748b;max-width:24rem">${err.message}</p>
+        <p style="font-size:0.75rem;color:#94a3b8;margin-top:0.75rem">請確認 config.js 中的 SHEET_ID 與 TAB_GIDS 已正確設定，並且試算表已發布為 CSV。</p>
+      </div>`;
+  }
+}
+
+function scrollToSection(id) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+window.scrollToSection = scrollToSection;
+
+init();
+</script>
+
+</body>
+</html>
