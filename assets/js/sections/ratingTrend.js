@@ -1,5 +1,5 @@
 // ratingTrend.js — Monthly rating trend line chart
-import { YUANTA, BANK_COLORS, ALL_BANKS } from "../config.js";
+import { YUANTA, BANK_COLORS, ALL_BANKS, BANK_LOGOS } from "../config.js";
 import { num } from "../dataLoader.js";
 import { getDateCutoff } from "../filters.js";
 
@@ -17,6 +17,48 @@ function getYuantaEarliestMonth(summaryMonthly) {
     .map((r) => r.year_month)
     .sort();
   return months[0] || null;
+}
+
+function renderHtmlLegend(banks) {
+  const container = document.getElementById("trend-legend");
+  if (!container) return;
+
+  const hasHighlight = highlightedBanks.size > 0;
+
+  container.innerHTML = banks.map(bank => {
+    const color = BANK_COLORS[bank] || "#94a3b8";
+    const logoUrl = BANK_LOGOS[bank] || "";
+    const isYuanta = bank === YUANTA;
+    const isHighlighted = isYuanta || highlightedBanks.has(bank);
+    const dimmed = hasHighlight && !isHighlighted;
+
+    return `<span class="trend-legend-item" data-bank="${bank}"
+      style="display:inline-flex;align-items:center;gap:3px;
+             padding:2px 6px;border-radius:4px;font-size:11px;
+             color:#64748b;user-select:none;
+             cursor:${isYuanta ? "default" : "pointer"};
+             opacity:${dimmed ? 0.3 : 1};
+             font-weight:${isHighlighted && !isYuanta ? 600 : 400};
+             border-bottom:2px solid ${color};">
+      <img src="${logoUrl}" width="13" height="13"
+           style="object-fit:contain;border-radius:2px;"
+           onerror="this.style.display='none'">
+      ${bank}
+    </span>`;
+  }).join("");
+
+  container.querySelectorAll(".trend-legend-item").forEach(el => {
+    const bank = el.dataset.bank;
+    if (bank === YUANTA) return;
+    el.addEventListener("click", () => {
+      if (highlightedBanks.has(bank)) {
+        highlightedBanks.delete(bank);
+      } else {
+        highlightedBanks.add(bank);
+      }
+      renderRatingTrend(_lastSummaryMonthly, _lastVersionImpact, _lastFilterState, _lastMetadata);
+    });
+  });
 }
 
 export function renderRatingTrend(summaryMonthly, versionImpact, { selectedBanks, platform, dateRange }, metadata) {
@@ -139,6 +181,7 @@ export function renderRatingTrend(summaryMonthly, versionImpact, { selectedBanks
     chart.data.labels = months;
     chart.data.datasets = datasets;
     chart.update();
+    renderHtmlLegend(banks);
   } else {
     chart = new Chart(canvas, {
       type: "line",
@@ -148,19 +191,7 @@ export function renderRatingTrend(summaryMonthly, versionImpact, { selectedBanks
         maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
         plugins: {
-          legend: {
-            labels: { color: "#64748b", font: { size: 11 }, boxWidth: 12 },
-            onClick: (e, legendItem) => {
-              const label = legendItem.text;
-              if (label === "元大評論量" || label === YUANTA) return;
-              if (highlightedBanks.has(label)) {
-                highlightedBanks.delete(label);
-              } else {
-                highlightedBanks.add(label);
-              }
-              renderRatingTrend(_lastSummaryMonthly, _lastVersionImpact, _lastFilterState, _lastMetadata);
-            },
-          },
+          legend: { display: false },
           tooltip: {
             callbacks: {
               title: (items) => items[0]?.label || "",
@@ -196,6 +227,8 @@ export function renderRatingTrend(summaryMonthly, versionImpact, { selectedBanks
       },
     });
   }
+
+  renderHtmlLegend(banks);
 
   // Update subtitle
   const noteEl = document.getElementById("trend-data-note");
