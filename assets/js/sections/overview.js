@@ -101,7 +101,7 @@ export function renderOverview(summaryBank, summaryMonthly, { selectedBanks, pla
       icon: "⭐",
     },
     {
-      label: "iOS 本月評分",
+      label: "iOS 整體評分",
       value: yuantaIOS ? yuantaIOS.avgRating.toFixed(2) : "—",
       sub: yuantaIOS ? `${yuantaIOS.totalReviews} 則評論` : "",
       delta: null,
@@ -109,7 +109,7 @@ export function renderOverview(summaryBank, summaryMonthly, { selectedBanks, pla
       icon: "",
     },
     {
-      label: "Android 本月評分",
+      label: "Android 整體評分",
       value: yuantaAndroid ? yuantaAndroid.avgRating.toFixed(2) : "—",
       sub: yuantaAndroid ? `${yuantaAndroid.totalReviews} 則評論` : "",
       delta: null,
