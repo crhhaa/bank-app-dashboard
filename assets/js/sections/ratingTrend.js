@@ -19,20 +19,6 @@ function getYuantaEarliestMonth(summaryMonthly) {
   return months[0] || null;
 }
 
-// Compute fractional x index for a release date within the months array.
-// e.g. "2025-03-11" in a 31-day March at index 5 → 5 + 10/31 ≈ 5.32
-function releaseX(releaseDate, monthIndexMap) {
-  if (!releaseDate) return null;
-  const ym = releaseDate.slice(0, 7);
-  const idx = monthIndexMap[ym];
-  if (idx == null) return null;
-  const day = parseInt(releaseDate.slice(8, 10), 10);
-  const year = parseInt(releaseDate.slice(0, 4), 10);
-  const mon = parseInt(releaseDate.slice(5, 7), 10);
-  const daysInMonth = new Date(year, mon, 0).getDate();
-  return idx + (day - 1) / daysInMonth;
-}
-
 export function renderRatingTrend(summaryMonthly, versionImpact, { selectedBanks, platform, dateRange }, metadata) {
   _lastSummaryMonthly = summaryMonthly;
   _lastVersionImpact = versionImpact;
@@ -43,7 +29,7 @@ export function renderRatingTrend(summaryMonthly, versionImpact, { selectedBanks
 
   const platFilter = platform === "all" ? null : platform;
 
-  // Filter rows
+  // Filter rows by selected banks + platform
   let rows = summaryMonthly.filter((r) => {
     if (!selectedBanks.includes(r.bank)) return false;
     if (platFilter && r.platform !== platFilter) return false;
@@ -74,12 +60,12 @@ export function renderRatingTrend(summaryMonthly, versionImpact, { selectedBanks
     });
   }
 
-  // Date cutoff from date range filter
-  const allMonths = [...new Set(rows.map((r) => r.year_month))].sort();
+  // Build months axis from ALL platforms — keeps x-axis labels stable across iOS/Android switches
+  const allPlatformRows = summaryMonthly.filter((r) => selectedBanks.includes(r.bank));
+  const allMonths = [...new Set(allPlatformRows.map((r) => r.year_month))].sort();
   const maxDate = allMonths[allMonths.length - 1];
   const cutoff = getDateCutoff(maxDate);
 
-  // Lock start month to 元大's earliest month (prevents showing data before Yuanta exists)
   const yuantaStart = getYuantaEarliestMonth(summaryMonthly);
   const months = allMonths.filter((m) => {
     if (cutoff && m < cutoff) return false;
@@ -87,10 +73,12 @@ export function renderRatingTrend(summaryMonthly, versionImpact, { selectedBanks
     return true;
   });
 
-  // Map month string → integer index for x positioning
-  const monthIndexMap = Object.fromEntries(months.map((m, i) => [m, i]));
+  if (months.length === 0) {
+    if (chart) { chart.destroy(); chart = null; }
+    return;
+  }
 
-  // Build datasets — stable order based on ALL_BANKS index
+  // Build datasets using positional (category) data — no explicit x values
   const banks = selectedBanks;
   const datasets = banks.map((bank) => {
     const bankRows = rows.filter((r) => r.bank === bank);
@@ -115,13 +103,11 @@ export function renderRatingTrend(summaryMonthly, versionImpact, { selectedBanks
       pointHoverRadius = isYuanta ? 6 : 3;
     }
 
-    // Stable order: use ALL_BANKS index so legend never jumps
     const stableOrder = ALL_BANKS.indexOf(bank);
 
     return {
       label: bank,
-      // Use { x: index, y: value } so the linear x-axis positions correctly
-      data: months.map((m, i) => byMonth[m] ? { x: i, y: num(byMonth[m].avg_rating) } : null),
+      data: months.map((m) => byMonth[m] ? num(byMonth[m].avg_rating) : null),
       borderColor,
       backgroundColor: "transparent",
       borderWidth,
@@ -133,7 +119,7 @@ export function renderRatingTrend(summaryMonthly, versionImpact, { selectedBanks
     };
   });
 
-  // Yuanta review volume as bar dataset
+  // Yuanta review volume bar
   const yuantaRows = rows.filter((r) => r.bank === YUANTA);
   const yuantaByMonth = {};
   yuantaRows.forEach((r) => { yuantaByMonth[r.year_month] = r; });
@@ -141,7 +127,7 @@ export function renderRatingTrend(summaryMonthly, versionImpact, { selectedBanks
   datasets.push({
     label: "元大評論量",
     type: "bar",
-    data: months.map((m, i) => ({ x: i, y: yuantaByMonth[m] ? num(yuantaByMonth[m].review_count) : 0 })),
+    data: months.map((m) => yuantaByMonth[m] ? num(yuantaByMonth[m].review_count) : 0),
     backgroundColor: "rgba(249, 115, 22, 0.12)",
     borderColor: "rgba(249, 115, 22, 0.3)",
     borderWidth: 1,
@@ -149,162 +135,69 @@ export function renderRatingTrend(summaryMonthly, versionImpact, { selectedBanks
     order: 999,
   });
 
-  // Build version release markers (iOS only — App Store has full historical version history)
-  // One triangle per release, positioned with intra-month precision using fractional x index.
-  const allMarkers = [];
-  banks.forEach((bank) => {
-    if (!versionImpact) return;
-    const bankColor = BANK_COLORS[bank] || "#94a3b8";
-    const releases = versionImpact.filter(
-      (r) => r.bank === bank && r.platform === "App Store" && r.release_date
-    );
-    releases.forEach((r) => {
-      // Only show releases within the visible month range
-      const ym = r.release_date.slice(0, 7);
-      if (!monthIndexMap.hasOwnProperty(ym)) return;
-      // Apply same cutoff as line data
-      if (cutoff && r.release_date < cutoff) return;
-
-      const x = releaseX(r.release_date, monthIndexMap);
-      if (x == null) return;
-
-      const delta = r.rating_delta ? num(r.rating_delta) : null;
-      const y = r.post_release_avg_rating
-        ? num(r.post_release_avg_rating)
-        : (monthIndexMap[ym] != null ? null : null); // fallback: skip if no y
-
-      if (y == null || isNaN(y)) return;
-
-      allMarkers.push({
-        x,
-        y,
-        bank,
-        bankColor,
-        releaseDate: r.release_date,
-        version: r.version || "—",
-        delta,
-        color: delta !== null ? (delta > 0.05 ? "#16a34a" : delta < -0.05 ? "#dc2626" : "#94a3b8") : "#94a3b8",
-        rotation: delta !== null && delta < -0.05 ? 180 : 0,
-      });
-    });
-  });
-
-  // Sort markers by x so tooltip indices are stable
-  allMarkers.sort((a, b) => a.x - b.x);
-
-  if (allMarkers.length > 0) {
-    datasets.push({
-      label: "版本發布",
-      type: "scatter",
-      data: allMarkers.map((p) => ({ x: p.x, y: p.y })),
-      pointStyle: "triangle",
-      pointRadius: 9,
-      pointHoverRadius: 11,
-      pointBackgroundColor: allMarkers.map((p) => p.color),
-      pointRotation: allMarkers.map((p) => p.rotation),
-      borderWidth: 0,
-      showLine: false,
-      order: 0,
-    });
-  }
-
-  const config = {
-    type: "line",
-    data: { datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: {
-          labels: {
-            color: "#64748b", font: { size: 11 }, boxWidth: 12,
-          },
-          onClick: (e, legendItem) => {
-            const label = legendItem.text;
-            if (label === "元大評論量" || label === YUANTA || label === "版本發布") return;
-            if (highlightedBanks.has(label)) {
-              highlightedBanks.delete(label);
-            } else {
-              highlightedBanks.add(label);
-            }
-            renderRatingTrend(_lastSummaryMonthly, _lastVersionImpact, _lastFilterState, _lastMetadata);
-          },
-        },
-        tooltip: {
-          callbacks: {
-            title: (items) => {
-              // Show the month label for non-marker items; for markers show release date
-              const firstItem = items[0];
-              if (!firstItem) return "";
-              // Find if any item is a version marker
-              const markerItem = items.find((it) => it.dataset.label === "版本發布");
-              if (markerItem) {
-                const p = allMarkers[markerItem.dataIndex];
-                return p ? p.releaseDate : "";
-              }
-              const idx = Math.round(firstItem.parsed.x);
-              return months[idx] || "";
-            },
-            label: (ctx) => {
-              if (ctx.dataset.label === "版本發布") {
-                const p = allMarkers[ctx.dataIndex];
-                if (!p) return null;
-                const sign = p.delta > 0 ? "+" : "";
-                const deltaStr = p.delta != null ? ` (Δ${sign}${p.delta.toFixed(2)})` : "";
-                return ` [${p.bank}] v${p.version}${deltaStr}`;
-              }
-              if (ctx.dataset.label === "元大評論量")
-                return ` 評論量: ${ctx.raw?.y ?? ctx.raw}`;
-              const val = ctx.raw?.y ?? ctx.raw;
-              return ` ${ctx.dataset.label}: ${typeof val === "number" ? val.toFixed(2) : "—"}`;
-            },
-          },
-        },
-      },
-      scales: {
-        x: {
-          type: "linear",
-          min: -0.5,
-          max: months.length - 0.001,
-          ticks: {
-            stepSize: 1,
-            callback: (val) => {
-              if (!Number.isInteger(val)) return "";
-              return (val >= 0 && val < months.length) ? months[val] : "";
-            },
-            color: "#94a3b8",
-            maxRotation: 45,
-            font: { size: 10 },
-          },
-          grid: { color: "#f1f5f9" },
-        },
-        y: {
-          min: 1,
-          max: 5,
-          ticks: { color: "#94a3b8", font: { size: 11 } },
-          grid: { color: "#f1f5f9" },
-          title: { display: true, text: "平均評分", color: "#94a3b8" },
-        },
-        y2: {
-          position: "right",
-          ticks: { color: "#94a3b8", font: { size: 10 } },
-          grid: { display: false },
-          title: { display: true, text: "評論數", color: "#94a3b8" },
-        },
-      },
-    },
-  };
-
   if (chart) {
-    chart.data = config.data;
-    chart.options = config.options;
+    chart.data.labels = months;
+    chart.data.datasets = datasets;
     chart.update();
   } else {
-    chart = new Chart(canvas, config);
+    chart = new Chart(canvas, {
+      type: "line",
+      data: { labels: months, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: {
+            labels: { color: "#64748b", font: { size: 11 }, boxWidth: 12 },
+            onClick: (e, legendItem) => {
+              const label = legendItem.text;
+              if (label === "元大評論量" || label === YUANTA) return;
+              if (highlightedBanks.has(label)) {
+                highlightedBanks.delete(label);
+              } else {
+                highlightedBanks.add(label);
+              }
+              renderRatingTrend(_lastSummaryMonthly, _lastVersionImpact, _lastFilterState, _lastMetadata);
+            },
+          },
+          tooltip: {
+            callbacks: {
+              title: (items) => items[0]?.label || "",
+              label: (ctx) => {
+                if (ctx.dataset.label === "元大評論量")
+                  return ` 評論量: ${ctx.raw}`;
+                const val = ctx.raw;
+                return ` ${ctx.dataset.label}: ${typeof val === "number" ? val.toFixed(2) : "—"}`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            type: "category",
+            ticks: { color: "#94a3b8", maxRotation: 45, font: { size: 10 } },
+            grid: { color: "#f1f5f9" },
+          },
+          y: {
+            min: 1,
+            max: 5,
+            ticks: { color: "#94a3b8", font: { size: 11 } },
+            grid: { color: "#f1f5f9" },
+            title: { display: true, text: "平均評分", color: "#94a3b8" },
+          },
+          y2: {
+            position: "right",
+            ticks: { color: "#94a3b8", font: { size: 10 } },
+            grid: { display: false },
+            title: { display: true, text: "評論數", color: "#94a3b8" },
+          },
+        },
+      },
+    });
   }
 
-  // Update subtitle with data start date
+  // Update subtitle
   const noteEl = document.getElementById("trend-data-note");
   if (noteEl) {
     const startDate = metadata && metadata[0] && metadata[0].yuanta_data_start_date

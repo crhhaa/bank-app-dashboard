@@ -70,12 +70,9 @@ function _initRadarBankSelector(availableBanks, sidebarSelectedBanks) {
   const container = document.getElementById("voice-bank-pills");
   if (!container) return;
 
-  // On first render, default to Yuanta + first 4 sidebar-selected competitors
+  // On first render, default to Yuanta only
   if (_selectedRadarBanks.length === 0) {
-    const competitors = sidebarSelectedBanks
-      .filter((b) => b !== YUANTA && availableBanks.includes(b))
-      .slice(0, MAX_RADAR_BANKS - 1);
-    _selectedRadarBanks = [YUANTA, ...competitors];
+    _selectedRadarBanks = [YUANTA];
   }
 
   // Remove banks no longer in available list
