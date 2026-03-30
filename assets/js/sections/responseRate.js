@@ -1,5 +1,5 @@
 // responseRate.js — Developer response rate and speed
-import { YUANTA, BANK_COLORS, ALL_BANKS } from "../config.js";
+import { YUANTA, BANK_COLORS, ALL_BANKS, BANK_LOGOS } from "../config.js";
 import { num } from "../dataLoader.js";
 import { getDateCutoff } from "../filters.js";
 
@@ -206,19 +206,7 @@ function renderSpeedLine(summaryMonthly, selectedBanks, platform, dateRange, met
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: {
-          labels: { color: "#64748b", font: { size: 11 }, boxWidth: 12 },
-          onClick: (e, legendItem) => {
-            const label = legendItem.text;
-            if (label === "3天基準線" || label === YUANTA) return;
-            if (highlightedSpeedBanks.has(label)) {
-              highlightedSpeedBanks.delete(label);
-            } else {
-              highlightedSpeedBanks.add(label);
-            }
-            renderSpeedLine(_lastSummaryMonthly, _lastFilterState.selectedBanks, _lastFilterState.platform, _lastFilterState.dateRange);
-          },
-        },
+        legend: { display: false },
         tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw != null && ctx.raw > 0 ? ctx.raw.toFixed(1) + " 天" : "—"}` } },
       },
       scales: {
@@ -239,6 +227,42 @@ function renderSpeedLine(summaryMonthly, selectedBanks, platform, dateRange, met
     chartSpeed.update();
   } else {
     chartSpeed = new Chart(canvas, config);
+  }
+
+  // Render custom HTML legend
+  const legendContainer = document.getElementById("speed-legend");
+  if (legendContainer) {
+    const hasHighlight = highlightedSpeedBanks.size > 0;
+    legendContainer.innerHTML = selectedBanks.map(bank => {
+      const color = BANK_COLORS[bank] || "#94a3b8";
+      const logoSrc = BANK_LOGOS[bank] || "";
+      const isYuanta = bank === YUANTA;
+      const isHighlighted = isYuanta || highlightedSpeedBanks.has(bank);
+      const dimmed = hasHighlight && !isHighlighted;
+      return `<span class="speed-legend-item" data-bank="${bank}"
+        style="display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;
+               font-size:11px;color:#64748b;user-select:none;
+               cursor:${isYuanta ? "default" : "pointer"};
+               opacity:${dimmed ? 0.3 : 1};
+               font-weight:${isHighlighted && !isYuanta ? 600 : 400};
+               border-bottom:2px solid ${color};">
+        <img src="${logoSrc}" width="13" height="13" style="object-fit:contain;border-radius:2px;" onerror="this.style.display='none'">
+        ${bank}
+      </span>`;
+    }).join("") + `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 6px;font-size:11px;color:#ef4444;border-bottom:2px dashed #ef4444;">3天基準線</span>`;
+
+    legendContainer.querySelectorAll(".speed-legend-item").forEach(el => {
+      const bank = el.dataset.bank;
+      if (bank === YUANTA) return;
+      el.addEventListener("click", () => {
+        if (highlightedSpeedBanks.has(bank)) {
+          highlightedSpeedBanks.delete(bank);
+        } else {
+          highlightedSpeedBanks.add(bank);
+        }
+        renderSpeedLine(_lastSummaryMonthly, _lastFilterState.selectedBanks, _lastFilterState.platform, _lastFilterState.dateRange, _lastMetadata);
+      });
+    });
   }
 
   // Update subtitle with data start date

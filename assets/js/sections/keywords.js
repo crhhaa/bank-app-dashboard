@@ -1,5 +1,5 @@
 // keywords.js — Voice analysis: radar charts (痛點/優勢) + category pills + review list
-import { YUANTA, BANK_COLORS, ALL_BANKS } from "../config.js";
+import { YUANTA, BANK_COLORS, ALL_BANKS, BANK_LOGOS } from "../config.js";
 import { num } from "../dataLoader.js";
 
 const VOICE_CATEGORIES = [
@@ -89,12 +89,13 @@ function _initRadarBankSelector(availableBanks, sidebarSelectedBanks) {
       : isDisabled
         ? "background:#f1f5f9;color:#cbd5e1;border-color:#e2e8f0;cursor:not-allowed"
         : "background:#fff;color:var(--text-primary);border-color:var(--border)";
+    const logoSrc = BANK_LOGOS[bank] || "";
     return `<button
       class="voice-bank-pill"
       data-bank="${bank}"
-      style="padding:0.25rem 0.6rem;border-radius:999px;border:1.5px solid;font-size:0.75rem;font-weight:600;cursor:${isDisabled ? "not-allowed" : "pointer"};transition:all 0.15s;${style}"
+      style="display:inline-flex;align-items:center;gap:4px;padding:0.25rem 0.6rem;border-radius:999px;border:1.5px solid;font-size:0.75rem;font-weight:600;cursor:${isDisabled ? "not-allowed" : "pointer"};transition:all 0.15s;${style}"
       ${isYuanta ? "disabled" : ""}
-    >${bank}</button>`;
+    ><img src="${logoSrc}" width="14" height="14" style="border-radius:2px;object-fit:contain;" onerror="this.style.display='none'">${bank}</button>`;
   }).join("");
 
   container.querySelectorAll(".voice-bank-pill:not([disabled])").forEach((btn) => {
@@ -153,11 +154,25 @@ function renderRadarCharts() {
     });
   }
 
+  // Render shared HTML legend for radar charts
+  function renderRadarLegend(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = _selectedRadarBanks.map(bank => {
+      const color = BANK_COLORS[bank] || "#94a3b8";
+      const logoSrc = BANK_LOGOS[bank] || "";
+      return `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;font-size:11px;color:#64748b;border-bottom:2px solid ${color};">
+        <img src="${logoSrc}" width="13" height="13" style="object-fit:contain;border-radius:2px;" onerror="this.style.display='none'">
+        ${bank}
+      </span>`;
+    }).join("");
+  }
+
   const radarOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { labels: { color: "#64748b", font: { size: 11 }, boxWidth: 12 } },
+      legend: { display: false },
       tooltip: {
         callbacks: {
           label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`,
@@ -206,6 +221,7 @@ function renderRadarCharts() {
     } else {
       chartNeg = new Chart(negCanvas, { type: "radar", data: negData, options: radarOptions });
     }
+    renderRadarLegend("radar-neg-legend");
   }
 
   // Positive radar
@@ -218,6 +234,7 @@ function renderRadarCharts() {
     } else {
       chartPos = new Chart(posCanvas, { type: "radar", data: posData, options: radarOptions });
     }
+    renderRadarLegend("radar-pos-legend");
   }
 }
 

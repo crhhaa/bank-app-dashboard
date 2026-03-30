@@ -222,12 +222,14 @@
         <div class="col-2" style="align-items:start">
           <div class="chart-card">
             <h3 style="color:#dc2626">😤 痛點分佈（負評中各類別比例）</h3>
+            <div id="radar-neg-legend" style="display:flex;flex-wrap:wrap;gap:4px 6px;padding:4px 0 6px;justify-content:center;"></div>
             <div class="chart-wrap" style="height:380px">
               <canvas id="chart-voice-neg"></canvas>
             </div>
           </div>
           <div class="chart-card">
             <h3 style="color:#16a34a">😊 優勢分佈（正評中各類別比例）</h3>
+            <div id="radar-pos-legend" style="display:flex;flex-wrap:wrap;gap:4px 6px;padding:4px 0 6px;justify-content:center;"></div>
             <div class="chart-wrap" style="height:380px">
               <canvas id="chart-voice-pos"></canvas>
             </div>
@@ -280,6 +282,7 @@
               <h3 style="flex:1;margin:0">月平均回覆天數趨勢（紅線 = 3天基準）</h3>
               <button id="btn-cancel-speed" style="display:none;font-size:0.72rem;padding:0.2rem 0.65rem;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-secondary);">✕ 取消選取</button>
             </div>
+            <div id="speed-legend" style="display:flex;flex-wrap:wrap;gap:4px 6px;padding:4px 0 8px;justify-content:center;"></div>
             <div class="chart-wrap" style="height: 340px;">
               <canvas id="chart-response-speed"></canvas>
             </div>
