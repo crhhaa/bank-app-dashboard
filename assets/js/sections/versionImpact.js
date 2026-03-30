@@ -14,9 +14,7 @@ function getYuantaEarliestMonth(summaryMonthly) {
   return months[0] || null;
 }
 
-export function renderVersionImpact(versionImpact, summaryMonthly, { selectedBanks, platform }, metadata) {
-  const platFilter = platform === "all" ? null : platform;
-
+export function renderVersionImpact(versionImpact, summaryMonthly, { selectedBanks }, metadata) {
   // Populate bank selector on first render
   _initVersionBankSelect(versionImpact, selectedBanks);
 
@@ -25,7 +23,7 @@ export function renderVersionImpact(versionImpact, summaryMonthly, { selectedBan
 
   renderImpactTableIOS(versionImpact, selectedBank);
   renderImpactTableAndroid(versionImpact, selectedBank);
-  renderImpactChart(versionImpact, summaryMonthly, selectedBank, platFilter, metadata);
+  renderImpactChart(versionImpact, summaryMonthly, selectedBank, metadata);
 }
 
 function _initVersionBankSelect(versionImpact, selectedBanks) {
@@ -133,24 +131,12 @@ function renderImpactTableAndroid(versionImpact, bank) {
   tbody.innerHTML = rows.map(_rowHtml).join("");
 }
 
-function renderImpactChart(versionImpact, summaryMonthly, bank, platFilter, metadata) {
+function renderImpactChart(versionImpact, summaryMonthly, bank, metadata) {
   const canvas = document.getElementById("chart-version-impact");
   if (!canvas) return;
 
-  let monthly = summaryMonthly.filter((r) => r.bank === bank);
-  if (platFilter) {
-    monthly = monthly.filter((r) => r.platform === platFilter);
-  } else {
-    const grouped = {};
-    monthly.forEach((r) => {
-      if (!grouped[r.year_month]) grouped[r.year_month] = [];
-      grouped[r.year_month].push(num(r.avg_rating));
-    });
-    monthly = Object.entries(grouped).map(([ym, vals]) => ({
-      year_month: ym,
-      avg_rating: vals.reduce((a, b) => a + b, 0) / vals.length,
-    }));
-  }
+  // This chart always shows iOS (App Store) data only — version markers are iOS-only too
+  let monthly = summaryMonthly.filter((r) => r.bank === bank && r.platform === "App Store");
 
   monthly.sort((a, b) => a.year_month.localeCompare(b.year_month));
 
