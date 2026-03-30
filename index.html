@@ -324,7 +324,7 @@
               <input type="checkbox" id="alert-show-all" onchange="window._refreshAlerts()" />
               顯示所有選中銀行
             </label>
-            <span class="ml-auto" style="font-size:0.75rem;color:var(--text-secondary)">顯示 <span id="alert-count">0</span> 則（最多100）</span>
+            <span class="ml-auto" style="font-size:0.75rem;color:var(--text-secondary)">共 <span id="alert-total">0</span> 則，顯示第 <span id="alert-page-info">1</span> 頁</span>
           </div>
           <div class="overflow-x-auto">
             <table class="data-table w-full">
@@ -342,6 +342,7 @@
               <tbody id="alert-tbody"></tbody>
             </table>
           </div>
+          <div id="alert-pagination" class="control-row" style="justify-content:center;gap:0.35rem;margin-top:0.75rem;flex-wrap:wrap"></div>
         </div>
       </section>
 

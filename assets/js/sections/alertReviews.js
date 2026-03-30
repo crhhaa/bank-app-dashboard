@@ -4,7 +4,11 @@ import { num } from "../dataLoader.js";
 import { getDateCutoff } from "../filters.js";
 import { getCategoryForReview } from "./keywords.js";
 
+const PAGE_SIZE = 15;
+
 let allReviews = null;
+let currentPage = 1;
+let lastFilterState = null;
 
 export function initAlertReviews(reviews) {
   allReviews = reviews;
@@ -18,7 +22,10 @@ export function renderAlertReviews({ selectedBanks, platform }, focusedBank = nu
     bankSel.innerHTML = selectedBanks
       .map((b) => `<option value="${b}" ${b === bank ? "selected" : ""}>${b}</option>`)
       .join("");
-    bankSel.onchange = () => renderAlertReviews({ selectedBanks, platform }, bankSel.value);
+    bankSel.onchange = () => {
+      currentPage = 1;
+      renderAlertReviews({ selectedBanks, platform }, bankSel.value);
+    };
   }
 
   // Local platform filter (overrides global if set)
@@ -31,6 +38,13 @@ export function renderAlertReviews({ selectedBanks, platform }, focusedBank = nu
   const showAll = document.getElementById("alert-show-all")?.checked;
   const categorySel = document.getElementById("alert-category-select");
   const categoryFilter = categorySel && categorySel.value !== "all" ? categorySel.value : null;
+
+  // Detect filter changes — reset to page 1
+  const filterKey = JSON.stringify({ bank, platFilter, selectedRatings: [...selectedRatings].sort(), showAll, categoryFilter });
+  if (filterKey !== lastFilterState) {
+    currentPage = 1;
+    lastFilterState = filterKey;
+  }
 
   let rows = allReviews || [];
 
@@ -51,16 +65,23 @@ export function renderAlertReviews({ selectedBanks, platform }, focusedBank = nu
     return true;
   });
 
-  rows = rows.slice(0, 100);
+  const totalRows = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+
+  const pageRows = rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const totalEl = document.getElementById("alert-total");
+  const pageInfoEl = document.getElementById("alert-page-info");
+  if (totalEl) totalEl.textContent = totalRows;
+  if (pageInfoEl) pageInfoEl.textContent = `${currentPage} / ${totalPages}`;
 
   const tbody = document.getElementById("alert-tbody");
-  const countEl = document.getElementById("alert-count");
-  if (countEl) countEl.textContent = rows.length;
-
   if (!tbody) return;
 
-  if (!rows.length) {
+  if (!pageRows.length) {
     tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-sm" style="color:var(--text-secondary)">無符合條件的評論</td></tr>';
+    renderPagination(totalPages, selectedBanks, platform, focusedBank);
     return;
   }
 
@@ -74,7 +95,7 @@ export function renderAlertReviews({ selectedBanks, platform }, focusedBank = nu
     "速度效能": "#9333ea",
   };
 
-  tbody.innerHTML = rows
+  tbody.innerHTML = pageRows
     .map((r) => {
       const stars = "★".repeat(num(r.rating)) + "☆".repeat(5 - num(r.rating));
       const starColor = num(r.rating) <= 2 ? "#dc2626" : num(r.rating) === 3 ? "#d97706" : "#16a34a";
@@ -125,4 +146,59 @@ export function renderAlertReviews({ selectedBanks, platform }, focusedBank = nu
       return reviewRow + replyRow;
     })
     .join("");
+
+  renderPagination(totalPages, selectedBanks, platform, focusedBank);
+}
+
+function renderPagination(totalPages, selectedBanks, platform, focusedBank) {
+  const container = document.getElementById("alert-pagination");
+  if (!container) return;
+
+  if (totalPages <= 1) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const btnStyle = (active) =>
+    `style="padding:0.2rem 0.6rem;border-radius:0.375rem;border:1px solid var(--border);background:${active ? "var(--accent)" : "var(--bg-card)"};color:${active ? "#fff" : "var(--text-primary)"};cursor:${active ? "default" : "pointer"};font-size:0.78rem;min-width:2rem"`;
+
+  const pages = getPaginationRange(currentPage, totalPages);
+
+  const buttons = pages.map((p) => {
+    if (p === "…") {
+      return `<span style="padding:0.2rem 0.3rem;color:var(--text-secondary);font-size:0.78rem">…</span>`;
+    }
+    return `<button ${btnStyle(p === currentPage)} data-page="${p}" ${p === currentPage ? "disabled" : ""}>${p}</button>`;
+  });
+
+  const prevDisabled = currentPage === 1;
+  const nextDisabled = currentPage === totalPages;
+  const navStyle = (disabled) =>
+    `style="padding:0.2rem 0.6rem;border-radius:0.375rem;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:${disabled ? 'default' : 'pointer'};font-size:0.78rem;min-width:2rem;opacity:${disabled ? '0.4' : '1'}"`;
+  const prevBtn = `<button ${navStyle(prevDisabled)} data-page="${currentPage - 1}" ${prevDisabled ? 'disabled' : ''}>‹</button>`;
+  const nextBtn = `<button ${navStyle(nextDisabled)} data-page="${currentPage + 1}" ${nextDisabled ? 'disabled' : ''}>›</button>`;
+
+  container.innerHTML = prevBtn + buttons.join("") + nextBtn;
+
+  container.querySelectorAll("button[data-page]").forEach((btn) => {
+    if (btn.disabled) return;
+    btn.addEventListener("click", () => {
+      currentPage = parseInt(btn.dataset.page);
+      renderAlertReviews({ selectedBanks, platform }, focusedBank);
+      document.getElementById("alert-tbody")?.closest(".chart-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+}
+
+function getPaginationRange(current, total) {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = [];
+  pages.push(1);
+  if (current > 3) pages.push("…");
+  for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) {
+    pages.push(p);
+  }
+  if (current < total - 2) pages.push("…");
+  pages.push(total);
+  return pages;
 }
