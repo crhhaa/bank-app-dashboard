@@ -3,6 +3,7 @@ import { YUANTA } from "../config.js";
 import { num } from "../dataLoader.js";
 import { getDateCutoff } from "../filters.js";
 import { getCategoryForReview } from "./keywords.js";
+import { getProductLineForReview } from "./productAnalysis.js";
 
 const PAGE_SIZE = 15;
 
@@ -38,9 +39,11 @@ export function renderAlertReviews({ selectedBanks, platform }, focusedBank = nu
   const showAll = document.getElementById("alert-show-all")?.checked;
   const categorySel = document.getElementById("alert-category-select");
   const categoryFilter = categorySel && categorySel.value !== "all" ? categorySel.value : null;
+  const productLineSel = document.getElementById("alert-product-line-select");
+  const productLineFilter = productLineSel && productLineSel.value !== "all" ? productLineSel.value : null;
 
   // Detect filter changes — reset to page 1
-  const filterKey = JSON.stringify({ bank, platFilter, selectedRatings: [...selectedRatings].sort(), showAll, categoryFilter });
+  const filterKey = JSON.stringify({ bank, platFilter, selectedRatings: [...selectedRatings].sort(), showAll, categoryFilter, productLineFilter });
   if (filterKey !== lastFilterState) {
     currentPage = 1;
     lastFilterState = filterKey;
@@ -62,6 +65,10 @@ export function renderAlertReviews({ selectedBanks, platform }, focusedBank = nu
       const cat = getCategoryForReview(r.bank, r.platform, r.date, r.review);
       if (cat !== categoryFilter) return false;
     }
+    if (productLineFilter) {
+      const pl = getProductLineForReview(r.bank, r.platform, r.date, r.review);
+      if (pl !== productLineFilter) return false;
+    }
     return true;
   });
 
@@ -80,7 +87,7 @@ export function renderAlertReviews({ selectedBanks, platform }, focusedBank = nu
   if (!tbody) return;
 
   if (!pageRows.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-sm" style="color:var(--text-secondary)">無符合條件的評論</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-sm" style="color:var(--text-secondary)">無符合條件的評論</td></tr>';
     renderPagination(totalPages, selectedBanks, platform, focusedBank);
     return;
   }
@@ -118,13 +125,21 @@ export function renderAlertReviews({ selectedBanks, platform }, focusedBank = nu
         ? `<span style="padding:0.12rem 0.45rem;border-radius:999px;border:1.5px solid ${catColor};color:${catColor};font-weight:600;font-size:0.7rem;white-space:nowrap">${category}</span>`
         : '<span style="color:#cbd5e1;font-size:0.7rem">—</span>';
 
+      // Look up product line
+      const PRODUCT_LINE_COLORS = { "存款":"#0ea5e9","信用卡":"#f97316","基金":"#8b5cf6","貸款":"#10b981","外匯":"#f59e0b","其他":"#94a3b8" };
+      const productLine = getProductLineForReview(r.bank, r.platform, r.date, r.review);
+      const plColor = productLine ? (PRODUCT_LINE_COLORS[productLine] || "#94a3b8") : null;
+      const plBadge = productLine
+        ? `<span style="padding:0.12rem 0.45rem;border-radius:999px;border:1.5px solid ${plColor};color:${plColor};font-weight:600;font-size:0.7rem;white-space:nowrap">${productLine}</span>`
+        : '<span style="color:#cbd5e1;font-size:0.7rem">—</span>';
+
       const replyText = (r.developer_reply || "").trim();
       const replyDate = (r.developer_reply_date || "").trim();
       let replyRow = "";
       if (hasReply && replyText) {
         const replyDateStr = replyDate ? ` · ${replyDate}` : "";
         replyRow = `<tr class="reply-row">
-          <td colspan="7">
+          <td colspan="8">
             <div class="reply-bubble">
               <div class="reply-bubble-meta">💬 開發者回覆${replyDateStr}</div>
               ${replyText}
@@ -139,6 +154,7 @@ export function renderAlertReviews({ selectedBanks, platform }, focusedBank = nu
         <td class="px-3 py-2 text-xs whitespace-nowrap" style="color:var(--text-secondary)">${platformLabel}</td>
         <td class="px-3 py-2 text-sm whitespace-nowrap" style="color:${starColor}">${stars}</td>
         <td class="px-3 py-2 text-xs">${catBadge}</td>
+        <td class="px-3 py-2 text-xs">${plBadge}</td>
         <td class="px-3 py-2 text-sm max-w-sm" style="color:var(--text-primary)">${short}${full}</td>
         <td class="px-3 py-2 text-xs whitespace-nowrap">${replyBadge}</td>
       </tr>`;

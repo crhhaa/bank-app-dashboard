@@ -20,8 +20,12 @@ export const TAB_GIDS = {
   metadata:       "1584438192",  // Replace with actual GID
   // After running upload_to_sheets.py, open the spreadsheet, click each new tab,
   // copy the gid=XXXXXX from the URL, and replace the placeholders below:
-  voiceSummary:   "360251231",
-  voiceReviews:   "160118393",
+  voiceSummary:    "360251231",
+  voiceReviews:    "160118393",
+  // After running upload_to_sheets.py, open the spreadsheet, click each new tab,
+  // copy the gid=XXXXXX from the URL, and replace the placeholders below:
+  productSummary:  "622343940",
+  productReviews:  "504547742",
 };
 
 // Sheets CSV base URL — uses "Publish to web" endpoint (CORS-friendly, works from file:// and GitHub Pages)

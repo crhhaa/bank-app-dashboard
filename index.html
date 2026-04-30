@@ -52,6 +52,7 @@
       <a class="nav-link" onclick="scrollToSection('compare')">🏆 競品排名</a>
       <a class="nav-link" onclick="scrollToSection('version')">🔄 版本影響</a>
       <a class="nav-link" onclick="scrollToSection('keywords')">💬 用戶聲音</a>
+      <a class="nav-link" onclick="scrollToSection('product')">📦 產品線分析</a>
       <a class="nav-link" onclick="scrollToSection('response')">⚡ 回覆表現</a>
       <a class="nav-link" onclick="scrollToSection('alerts')">📋 評論列表</a>
     </nav>
@@ -264,6 +265,99 @@
         </div>
       </section>
 
+      <!-- ── Section 5b: Product Analysis ── -->
+      <section class="section" id="product">
+        <div class="section-header">
+          <h2 class="section-title">產品線分析</h2>
+          <span class="section-badge">金融產品評論分佈</span>
+        </div>
+
+        <!-- Bank filter -->
+        <div class="control-row" style="margin-bottom:0.75rem">
+          <span class="control-label">銀行：</span>
+          <select id="product-bank-select"></select>
+        </div>
+
+        <!-- Tab bar -->
+        <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:0.75rem">
+          <button id="product-tab-btn-products"
+            style="padding:0.5rem 1.25rem;font-size:0.85rem;font-weight:600;border:none;border-bottom:2.5px solid var(--accent);margin-bottom:-2px;background:none;cursor:pointer;color:var(--accent)"
+            onclick="window._switchProductTab('products')">產品線相關評論</button>
+          <button id="product-tab-btn-other"
+            style="padding:0.5rem 1.25rem;font-size:0.85rem;font-weight:600;border:none;border-bottom:2.5px solid transparent;margin-bottom:-2px;background:none;cursor:pointer;color:var(--text-secondary)"
+            onclick="window._switchProductTab('other')">其他評論</button>
+        </div>
+
+        <!-- Tab 1: Product lines -->
+        <div id="product-tab-products">
+          <div class="col-2" style="align-items:stretch">
+
+            <!-- Left: Pie chart + product pills -->
+            <div class="chart-card" style="display:flex;flex-direction:column">
+              <h3>產品線評論佔比</h3>
+              <div class="chart-wrap" style="flex:1;min-height:300px">
+                <canvas id="chart-product-pie"></canvas>
+              </div>
+              <div style="margin-top:0.75rem;font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.4rem">點擊產品線查看評分分佈與評論：</div>
+              <div id="product-line-pills" style="display:flex;flex-wrap:wrap;gap:0.4rem"></div>
+            </div>
+
+            <!-- Right: Bar chart (always visible, empty until product selected) -->
+            <div class="chart-card" id="product-bar-card" style="display:flex;flex-direction:column">
+              <h3 id="product-bar-title" style="margin-bottom:0.75rem">請選擇產品線</h3>
+              <div class="chart-wrap" style="flex:1;min-height:300px">
+                <canvas id="chart-product-bar"></canvas>
+              </div>
+              <p style="font-size:0.72rem;color:var(--text-secondary);margin-top:0.5rem">
+                點擊長條篩選下方評論；再次點擊取消篩選
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Tab 2: Other -->
+        <div id="product-tab-other" style="display:none">
+          <div class="chart-card">
+            <h3>「其他」評分分佈</h3>
+            <div class="chart-wrap" style="height:300px">
+              <canvas id="chart-other-bar"></canvas>
+            </div>
+            <p style="font-size:0.72rem;color:var(--text-secondary);margin-top:0.5rem">
+              點擊長條篩選下方評論；再次點擊取消篩選
+            </p>
+          </div>
+        </div>
+
+        <!-- Review list (shared between tabs) -->
+        <div class="chart-card mt-4" id="product-reviews-card" style="display:none">
+          <div style="display:flex;align-items:center;margin-bottom:0.75rem;gap:0.5rem;flex-wrap:wrap">
+            <h3 id="product-reviews-title" style="margin:0;flex:1">評論列表</h3>
+            <span id="product-star-group-badge"
+              style="font-size:0.72rem;padding:0.15rem 0.5rem;border-radius:999px;background:#fef3c7;color:#d97706;border:1px solid #fcd34d;display:none"></span>
+            <span id="product-reviews-total" style="font-size:0.75rem;color:var(--text-secondary)"></span>
+            <button id="product-reviews-close"
+              style="font-size:0.75rem;padding:0.2rem 0.65rem;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-secondary)">✕ 關閉</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="data-table w-full">
+              <thead>
+                <tr>
+                  <th>日期</th>
+                  <th>銀行／平台</th>
+                  <th>評分</th>
+                  <th>產品線</th>
+                  <th>評論內容</th>
+                </tr>
+              </thead>
+              <tbody id="product-reviews-tbody"></tbody>
+            </table>
+          </div>
+          <div id="product-reviews-pagination"
+            class="control-row" style="justify-content:center;gap:0.35rem;margin-top:0.75rem;flex-wrap:wrap"></div>
+        </div>
+      </section>
+
       <!-- ── Section 6: Response Rate ── -->
       <section class="section" id="response">
         <div class="section-header">
@@ -318,6 +412,16 @@
               <option value="功能完整性">功能完整性</option>
               <option value="速度效能">速度效能</option>
             </select>
+            <span class="control-label ml-2">產品線：</span>
+            <select id="alert-product-line-select" onchange="window._refreshAlerts()">
+              <option value="all">全部產品</option>
+              <option value="存款">存款</option>
+              <option value="信用卡">信用卡</option>
+              <option value="基金">基金</option>
+              <option value="貸款">貸款</option>
+              <option value="外匯">外匯</option>
+              <option value="其他">其他</option>
+            </select>
             <span class="control-label ml-2">星等：</span>
             <label class="star-check-label"><input type="checkbox" class="star-filter" value="1" onchange="window._refreshAlerts()" checked> 1★</label>
             <label class="star-check-label"><input type="checkbox" class="star-filter" value="2" onchange="window._refreshAlerts()" checked> 2★</label>
@@ -339,6 +443,7 @@
                   <th>平台</th>
                   <th>評分</th>
                   <th>分類</th>
+                  <th>產品線</th>
                   <th>評論內容</th>
                   <th>回覆狀態</th>
                 </tr>
@@ -357,7 +462,7 @@
 <!-- ── Main JS entry point ── -->
 <script type="module">
 import { ALL_BANKS, YUANTA } from "./assets/js/config.js";
-import { loadSummaryData, loadReviews, loadVoiceReviews } from "./assets/js/dataLoader.js";
+import { loadSummaryData, loadReviews, loadVoiceReviews, loadProductData } from "./assets/js/dataLoader.js";
 import { state, initFilters, onFilterChange, updateBankDataCoverage } from "./assets/js/filters.js";
 import { renderOverview } from "./assets/js/sections/overview.js";
 import { renderRatingTrend } from "./assets/js/sections/ratingTrend.js";
@@ -365,24 +470,27 @@ import { renderPlatformCompare } from "./assets/js/sections/platformCompare.js";
 import { renderResponseRate } from "./assets/js/sections/responseRate.js";
 import { renderVersionImpact } from "./assets/js/sections/versionImpact.js";
 import { renderKeywords, initVoiceReviews } from "./assets/js/sections/keywords.js";
+import { renderProductAnalysis, initProductReviews, switchProductTab } from "./assets/js/sections/productAnalysis.js";
 import { initAlertReviews, renderAlertReviews } from "./assets/js/sections/alertReviews.js";
 
 let globalData = null;
 
 function renderAll(filterState) {
   if (!globalData) return;
-  const { summaryBank, summaryMonthly, keywords, versionImpact, metadata, voiceSummary } = globalData;
+  const { summaryBank, summaryMonthly, versionImpact, metadata, voiceSummary } = globalData;
   renderOverview(summaryBank, summaryMonthly, filterState);
   renderRatingTrend(summaryMonthly, versionImpact, filterState, metadata);
   renderPlatformCompare(summaryBank, summaryMonthly, filterState);
   renderResponseRate(summaryBank, summaryMonthly, filterState, metadata);
   renderVersionImpact(versionImpact, summaryMonthly, filterState, metadata);
   renderKeywords(voiceSummary, filterState);
+  if (globalData.productSummary) renderProductAnalysis(globalData.productSummary, filterState);
   renderAlertReviews(filterState);
 }
 
 // Expose for inline onchange handlers
 window._refreshAlerts = () => renderAlertReviews(state);
+window._switchProductTab = switchProductTab;
 
 // Version bank selector re-render
 document.addEventListener("version-bank-change", () => {
@@ -436,6 +544,16 @@ async function init() {
       window._refreshAlerts(); // refresh alert list so category column populates
     }).catch((err) => {
       console.warn("Could not load voice_reviews tab:", err);
+    });
+
+    // Load product line data in background (for product analysis section + alert reviews filter)
+    loadProductData().then(({ productSummary, productReviews }) => {
+      globalData.productSummary = productSummary;
+      initProductReviews(productReviews);
+      renderProductAnalysis(productSummary, state);
+      window._refreshAlerts(); // refresh so product line filter populates
+    }).catch((err) => {
+      console.warn("Could not load product data:", err);
     });
 
   } catch (err) {

@@ -29,23 +29,40 @@ async function fetchTab(tabName) {
   return data;
 }
 
+function normalizeYearMonth(rows) {
+  return rows.map((r) => {
+    if (!r.year_month) return r;
+    const parts = r.year_month.split("-");
+    if (parts.length !== 2) return r;
+    return { ...r, year_month: `${parts[0]}-${parts[1].padStart(2, "0")}` };
+  });
+}
+
 // Load all summary tabs in parallel (fast, small data)
 export async function loadSummaryData() {
-  const [summaryBank, summaryMonthly, keywords, versionImpact, metadata, voiceSummary] =
+  const [summaryBank, summaryMonthly, versionImpact, metadata, voiceSummary] =
     await Promise.all([
       fetchTab("summaryBank"),
       fetchTab("summaryMonthly"),
-      fetchTab("keywords"),
       fetchTab("versionImpact"),
       fetchTab("metadata"),
       fetchTab("voiceSummary").catch(() => []),  // graceful fallback if tab not yet created
     ]);
-  return { summaryBank, summaryMonthly, keywords, versionImpact, metadata, voiceSummary };
+  return { summaryBank, summaryMonthly: normalizeYearMonth(summaryMonthly), versionImpact, metadata, voiceSummary };
 }
 
 // Load tagged voice reviews (large — background load for voice analysis section)
 export async function loadVoiceReviews() {
   return fetchTab("voiceReviews");
+}
+
+// Load product line summary + tagged reviews (background load for product analysis section)
+export async function loadProductData() {
+  const [productSummary, productReviews] = await Promise.all([
+    fetchTab("productSummary").catch(() => []),
+    fetchTab("productReviews").catch(() => []),
+  ]);
+  return { productSummary, productReviews };
 }
 
 // Load raw reviews (large — only for the alerts section)
