@@ -215,7 +215,7 @@ export function renderRatingTrend(summaryMonthly, versionImpact, { selectedBanks
             max: 5,
             ticks: { color: "#94a3b8", font: { size: 11 } },
             grid: { color: "#f1f5f9" },
-            title: { display: true, text: "評論均分", color: "#94a3b8" },
+            title: { display: true, text: "評論評分", color: "#94a3b8" },
           },
           y2: {
             position: "right",

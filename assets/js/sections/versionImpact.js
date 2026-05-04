@@ -200,7 +200,7 @@ function renderImpactChart(versionImpact, summaryMonthly, bank, metadata) {
     data: {
       datasets: [
         {
-          label: `${bank} 月評論均分`,
+          label: `${bank} 月評論評分`,
           // Use {x, y} with integer indices so this line aligns with the linear x-axis
           data: data.map((v, i) => ({ x: i, y: v })),
           borderColor: lineColor,
@@ -277,7 +277,7 @@ function renderImpactChart(versionImpact, summaryMonthly, bank, metadata) {
           min: 0, max: 6,
           ticks: { color: "#94a3b8" },
           grid: { color: "#f1f5f9" },
-          title: { display: true, text: "評論均分", color: "#94a3b8" },
+          title: { display: true, text: "評論評分", color: "#94a3b8" },
         },
       },
     },
