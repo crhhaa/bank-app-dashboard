@@ -204,8 +204,8 @@ function _renderRanking() {
   };
 
   // Split into two columns: left = ranks 1-10, right = ranks 11-20
-  const leftItems = top20.slice(0, 10).map(renderItem).join("");
-  const rightItems = top20.slice(10, 20).map(renderItem).join("");
+  const leftItems = top20.slice(0, 10).map((item, i) => renderItem(item, i)).join("");
+  const rightItems = top20.slice(10, 20).map((item, i) => renderItem(item, i + 10)).join("");
 
   container.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
