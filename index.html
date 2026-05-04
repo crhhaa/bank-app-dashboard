@@ -206,14 +206,14 @@
       <section class="section" id="version">
         <div class="section-header">
           <h2 class="section-title">版本發布影響</h2>
-          <span class="section-badge">更新前後評分變化</span>
+          <span class="section-badge">更新前後評論評分變化</span>
         </div>
         <div class="chart-card mb-4">
           <div class="control-row" style="margin-bottom:0.75rem">
             <span class="control-label">選擇銀行：</span>
             <select id="version-bank-select"></select>
           </div>
-          <h3>評分走勢 ＋ 版本發布標記（△綠=評分上升 △紅=下降）<span style="font-size:0.75rem;font-weight:400;color:#64748b;margin-left:0.5rem">版本標記僅 iOS（App Store 才有歷代版本紀錄）</span></h3>
+          <h3>評論評分走勢 ＋ 版本發布標記（△綠=評分上升 △紅=下降）<span style="font-size:0.75rem;font-weight:400;color:#64748b;margin-left:0.5rem">版本標記僅 iOS（App Store 才有歷代版本紀錄）</span></h3>
           <div class="chart-wrap" style="height: 280px;">
             <canvas id="chart-version-impact"></canvas>
           </div>
@@ -272,7 +272,7 @@
             <select id="complaint-bank-select"></select>
           </div>
           <h3 style="margin-bottom:0.25rem">每月客訴量（1-2★）＋ 客訴率 ＋ 版本發布標記</h3>
-          <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:0.75rem">長條 = 客訴數，折線 = 客訴率（佔當月所有評論 %），△ = iOS 版本發布（綠↑評分上升 紅↓下降）</p>
+          <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:0.75rem">長條 = 客訴數，折線 = 客訴率（佔當月所有評論 %），△ = iOS 版本發布（綠↑評論評分上升 紅↓下降）</p>
           <div class="chart-wrap" style="height:320px;">
             <canvas id="chart-complaint-timeline"></canvas>
           </div>
