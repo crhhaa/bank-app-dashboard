@@ -52,7 +52,7 @@ function getLatestMonthAvgRating(summaryMonthly, bank, platform, yuantaStart) {
   return monthRows.reduce((s, r) => s + num(r.avg_rating) * num(r.review_count), 0) / totalCount;
 }
 
-export function renderOverview(summaryBank, summaryMonthly, { selectedBanks, platform }) {
+export function renderOverview(summaryBank, summaryMonthly, { selectedBanks, platform }, appRatings = []) {
   const container = document.getElementById("section-overview");
   if (!container) return;
 
@@ -91,69 +91,111 @@ export function renderOverview(summaryBank, summaryMonthly, { selectedBanks, pla
     ? compAvgReplyDaysList.reduce((s, r) => s + r.avgReplyDays, 0) / compAvgReplyDaysList.length
     : null;
 
-  const cards = [
+  // iOS / Android overall ratings from iTunes Lookup + Google Play app()
+  const iosOverallRow    = (appRatings || []).find((r) => r.bank === YUANTA && r.platform === "App Store");
+  const androidOverallRow = (appRatings || []).find((r) => r.bank === YUANTA && r.platform === "Google Play");
+
+  const iosOverallAvg   = iosOverallRow?.avg_rating_overall   ? parseFloat(iosOverallRow.avg_rating_overall)   : null;
+  const iosOverallCount = iosOverallRow?.rating_count_overall ? parseInt(iosOverallRow.rating_count_overall, 10) : null;
+  const andOverallAvg   = androidOverallRow?.avg_rating_overall   ? parseFloat(androidOverallRow.avg_rating_overall)   : null;
+  const andOverallCount = androidOverallRow?.rating_count_overall ? parseInt(androidOverallRow.rating_count_overall, 10) : null;
+
+  function renderDelta(delta, decimals = 2) {
+    if (delta === null || delta === undefined) return "";
+    const cls  = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+    const arrow = delta > 0 ? "▲" : delta < 0 ? "▼" : "—";
+    const sign  = delta > 0 ? "+" : "";
+    return `<span class="kpi-delta ${cls}">${arrow} ${sign}${delta.toFixed(decimals)}</span>`;
+  }
+
+  function renderCard(card) {
+    return `
+      <div class="kpi-card" data-accent="${card.accent}">
+        <div class="kpi-label">${card.label}</div>
+        <div class="kpi-value-row">
+          <span class="kpi-value">${card.value}</span>
+          ${card.unit ? `<span class="kpi-unit">${card.unit}</span>` : ""}
+          ${renderDelta(card.delta, card.deltaDecimals ?? 2)}
+        </div>
+        ${card.compare ? `<div class="kpi-compare">${card.compare}</div>` : ""}
+      </div>`;
+  }
+
+  const latestRating = yuantaLatestAvgRating ?? yuantaStats.avgRating;
+  const ratingDelta  = compAvgRating != null ? latestRating - compAvgRating : null;
+
+  const ratingCards = [
     {
-      label: "本月平均評分",
-      value: yuantaLatestAvgRating != null ? yuantaLatestAvgRating.toFixed(2) : yuantaStats.avgRating.toFixed(2),
-      sub: compAvgRating ? `競品均 ${compAvgRating.toFixed(2)}` : "",
-      delta: compAvgRating && yuantaLatestAvgRating != null ? yuantaLatestAvgRating - compAvgRating : (compAvgRating ? yuantaStats.avgRating - compAvgRating : null),
-      suffix: "/ 5",
-      icon: "⭐",
+      label: "本月平均評論評分",
+      value: latestRating.toFixed(2),
+      unit: "/ 5",
+      delta: ratingDelta,
+      compare: compAvgRating ? `競品均 ${compAvgRating.toFixed(2)}` : "",
+      accent: "blue",
     },
     {
-      label: "iOS 總評分",
+      label: "iOS 商店總評分",
+      value: iosOverallAvg != null ? iosOverallAvg.toFixed(1) : "—",
+      unit: iosOverallAvg != null ? "/ 5" : "",
+      delta: null,
+      compare: iosOverallCount != null
+        ? `${iosOverallCount.toLocaleString()} 人評分（含純評星）`
+        : "執行 --overall-only 取得",
+      accent: "indigo",
+    },
+    {
+      label: "iOS 評論評分",
       value: yuantaIOS ? yuantaIOS.avgRating.toFixed(2) : "—",
-      sub: yuantaIOS ? `${yuantaIOS.totalReviews} 則評論` : "",
+      unit: "/ 5",
       delta: null,
-      suffix: "/ 5",
-      icon: "",
+      compare: yuantaIOS ? `${yuantaIOS.totalReviews.toLocaleString()} 則含留言評分` : "",
+      accent: "blue",
     },
     {
-      label: "Android 總評分",
-      value: yuantaAndroid ? yuantaAndroid.avgRating.toFixed(2) : "—",
-      sub: yuantaAndroid ? `${yuantaAndroid.totalReviews} 則評論` : "",
+      label: "Android 商店總評分",
+      value: andOverallAvg != null ? andOverallAvg.toFixed(1) : "—",
+      unit: andOverallAvg != null ? "/ 5" : "",
       delta: null,
-      suffix: "/ 5",
-      icon: "",
+      compare: andOverallCount != null
+        ? `${andOverallCount.toLocaleString()} 人評分（含純評星）`
+        : "執行 --overall-only 取得",
+      accent: "indigo",
     },
+    {
+      label: "Android 評論評分",
+      value: yuantaAndroid ? yuantaAndroid.avgRating.toFixed(2) : "—",
+      unit: "/ 5",
+      delta: null,
+      compare: yuantaAndroid ? `${yuantaAndroid.totalReviews.toLocaleString()} 則含留言評分` : "",
+      accent: "blue",
+    },
+  ];
+
+  const opsCards = [
     {
       label: "開發者本月回覆率",
       value: (yuantaStats.replyRate * 100).toFixed(1) + "%",
-      sub: compAvgReplyRate ? `競品均 ${(compAvgReplyRate * 100).toFixed(1)}%` : "",
-      delta: compAvgReplyRate ? yuantaStats.replyRate - compAvgReplyRate : null,
-      suffix: "",
-      icon: "💬",
+      unit: "",
+      delta: compAvgReplyRate != null ? yuantaStats.replyRate - compAvgReplyRate : null,
+      deltaDecimals: 1,
+      compare: compAvgReplyRate ? `競品均 ${(compAvgReplyRate * 100).toFixed(1)}%` : "",
+      accent: "green",
     },
     {
       label: "本月平均回覆天數",
       value: yuantaStats.avgReplyDays ? yuantaStats.avgReplyDays.toFixed(1) : "—",
-      sub: compAvgReplyDays ? `競品均 ${compAvgReplyDays.toFixed(1)} 天` : "",
+      unit: yuantaStats.avgReplyDays ? "天" : "",
       delta: compAvgReplyDays && yuantaStats.avgReplyDays
-        ? -(yuantaStats.avgReplyDays - compAvgReplyDays) // inverted: lower is better
+        ? -(yuantaStats.avgReplyDays - compAvgReplyDays)
         : null,
-      suffix: " 天",
-      icon: "⏱",
+      deltaDecimals: 1,
+      compare: compAvgReplyDays ? `競品均 ${compAvgReplyDays.toFixed(1)} 天` : "",
+      accent: "orange",
     },
   ];
 
-  container.innerHTML = cards
-    .map((card) => {
-      const deltaHtml = card.delta !== null
-        ? (() => {
-            const positive = card.delta > 0;
-            const color = positive ? "color:#16a34a" : card.delta < 0 ? "color:#dc2626" : "color:#94a3b8";
-            const arrow = positive ? "▲" : card.delta < 0 ? "▼" : "—";
-            const sign = card.delta > 0 ? "+" : "";
-            return `<span style="${color};font-size:0.75rem;font-weight:500;margin-left:0.2rem">${arrow} ${sign}${card.delta.toFixed(2)}</span>`;
-          })()
-        : "";
-      return `
-        <div class="kpi-card">
-          <div class="kpi-icon">${card.icon}</div>
-          <div class="kpi-value">${card.value}<span class="kpi-suffix">${card.suffix}</span>${deltaHtml}</div>
-          <div class="kpi-label">${card.label}</div>
-          ${card.sub ? `<div class="kpi-sub">${card.sub}</div>` : ""}
-        </div>`;
-    })
-    .join("");
+  container.innerHTML = `
+    <div class="kpi-group ratings">${ratingCards.map(renderCard).join("")}</div>
+    <div class="kpi-group ops">${opsCards.map(renderCard).join("")}</div>
+  `;
 }

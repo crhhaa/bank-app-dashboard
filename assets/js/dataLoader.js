@@ -40,15 +40,16 @@ function normalizeYearMonth(rows) {
 
 // Load all summary tabs in parallel (fast, small data)
 export async function loadSummaryData() {
-  const [summaryBank, summaryMonthly, versionImpact, metadata, voiceSummary] =
+  const [summaryBank, summaryMonthly, versionImpact, metadata, voiceSummary, appRatings] =
     await Promise.all([
       fetchTab("summaryBank"),
       fetchTab("summaryMonthly"),
       fetchTab("versionImpact"),
       fetchTab("metadata"),
       fetchTab("voiceSummary").catch(() => []),  // graceful fallback if tab not yet created
+      fetchTab("appRatings").catch(() => []),    // graceful fallback until GID is configured
     ]);
-  return { summaryBank, summaryMonthly: normalizeYearMonth(summaryMonthly), versionImpact, metadata, voiceSummary };
+  return { summaryBank, summaryMonthly: normalizeYearMonth(summaryMonthly), versionImpact, metadata, voiceSummary, appRatings };
 }
 
 // Load tagged voice reviews (large — background load for voice analysis section)

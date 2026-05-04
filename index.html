@@ -107,11 +107,17 @@
         </div>
         <div id="section-overview">
           <!-- Rendered by overview.js -->
-          <div class="kpi-card skeleton"></div>
-          <div class="kpi-card skeleton"></div>
-          <div class="kpi-card skeleton"></div>
-          <div class="kpi-card skeleton"></div>
-          <div class="kpi-card skeleton"></div>
+          <div class="kpi-group ratings">
+            <div class="kpi-card skeleton"></div>
+            <div class="kpi-card skeleton"></div>
+            <div class="kpi-card skeleton"></div>
+            <div class="kpi-card skeleton"></div>
+            <div class="kpi-card skeleton"></div>
+          </div>
+          <div class="kpi-group ops">
+            <div class="kpi-card skeleton"></div>
+            <div class="kpi-card skeleton"></div>
+          </div>
         </div>
       </section>
 
@@ -119,7 +125,7 @@
       <section class="section" id="trend">
         <div class="section-header">
           <h2 class="section-title">評分趨勢</h2>
-          <span class="section-badge">月平均評分比較</span>
+          <span class="section-badge">月評論均分比較</span>
         </div>
         <div class="chart-card">
           <div style="display:flex;justify-content:flex-end;margin-bottom:0.25rem;">
@@ -598,8 +604,8 @@ let globalData = null;
 
 function renderAll(filterState) {
   if (!globalData) return;
-  const { summaryBank, summaryMonthly, versionImpact, metadata, voiceSummary } = globalData;
-  renderOverview(summaryBank, summaryMonthly, filterState);
+  const { summaryBank, summaryMonthly, versionImpact, metadata, voiceSummary, appRatings } = globalData;
+  renderOverview(summaryBank, summaryMonthly, filterState, appRatings);
   renderRatingTrend(summaryMonthly, versionImpact, filterState, metadata);
   renderPlatformCompare(summaryBank, summaryMonthly, filterState);
   renderResponseRate(summaryBank, summaryMonthly, filterState, metadata);

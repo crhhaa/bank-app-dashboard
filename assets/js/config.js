@@ -30,6 +30,8 @@ export const TAB_GIDS = {
   // copy the gid=XXXXXX from the URL, and replace the placeholders below:
   painKeywordSummary: "1741784719",
   painReviews: "1439555310",
+  // After running upload_to_sheets.py, update this GID from the app_ratings tab URL:
+  appRatings: "1285887111",
 };
 
 // Sheets CSV base URL — uses "Publish to web" endpoint (CORS-friendly, works from file:// and GitHub Pages)

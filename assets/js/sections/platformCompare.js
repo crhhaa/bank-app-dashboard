@@ -68,7 +68,7 @@ function buildRankingChart(canvasId, stats, platformLabel, existingChart) {
     data: {
       labels,
       datasets: [{
-        label: `${platformLabel} 平均評分`,
+        label: `${platformLabel} 評論均分`,
         data,
         backgroundColor: colors,
         borderColor: borderColors,
