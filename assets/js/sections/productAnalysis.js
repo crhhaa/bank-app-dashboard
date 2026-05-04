@@ -3,15 +3,24 @@ import { YUANTA } from "../config.js";
 import { num } from "../dataLoader.js";
 
 const PAGE_SIZE = 10;
-const PRODUCT_CATEGORIES = ["存款", "信用卡", "基金", "貸款", "外匯", "其他"];
+// const PRODUCT_CATEGORIES = ["存款", "信用卡", "基金", "貸款", "外匯", "其他"];
+const PRODUCT_CATEGORIES = ["存款", "信用卡", "基金", "貸款", "外匯"];
+
+// const PRODUCT_COLORS = {
+//   "存款":   "#0ea5e9",
+//   "信用卡": "#f97316",
+//   "基金":   "#8b5cf6",
+//   "貸款":   "#10b981",
+//   "外匯":   "#f59e0b",
+//   "其他":   "#94a3b8",
+// };
 
 const PRODUCT_COLORS = {
   "存款":   "#0ea5e9",
   "信用卡": "#f97316",
   "基金":   "#8b5cf6",
   "貸款":   "#10b981",
-  "外匯":   "#f59e0b",
-  "其他":   "#94a3b8",
+  "外匯":   "#f59e0b"
 };
 
 // ── Module-level memoization state ──────────────────────────────────
@@ -88,13 +97,18 @@ export function renderProductAnalysis(productSummary, filterState) {
 
   _renderBankSelect(filterState.selectedBanks);
   _ensureFilteredSummary(filterState);
+  _renderTabBadges();
   _renderPieChart();
   _renderProductPills();
+  _renderBarChart();
   if (_selectedProduct) {
-    _renderBarChart();
     _renderReviewList(filterState);
   }
-  if (_activeTab === "other") _renderOtherBarChart();
+  if (_activeTab === "other") {
+    _renderOtherBarChart();
+    _renderOtherSummaryStrip();
+    _matchOtherColumnHeights();
+  }
 }
 
 // ── Memoization helpers ───────────────────────────────────────────────
@@ -111,7 +125,7 @@ function _ensureFilteredSummary(filterState) {
   });
 
   _aggregatedByProduct = {};
-  for (const cat of PRODUCT_CATEGORIES) {
+  for (const cat of [...PRODUCT_CATEGORIES, "其他"]) {
     _aggregatedByProduct[cat] = { total: 0, low: 0, mid: 0, high: 0 };
   }
   for (const r of _filteredSummary) {
@@ -151,6 +165,38 @@ function _getStarGroupRows(rows) {
     if (_selectedStarGroup === "high") return rating >= 4;
     return true;
   });
+}
+
+// ── Tab badges ────────────────────────────────────────────────────────
+
+function _renderTabBadges() {
+  const productsTotal = PRODUCT_CATEGORIES.reduce((s, cat) => s + (_aggregatedByProduct[cat]?.total || 0), 0);
+  const otherTotal = _aggregatedByProduct["其他"]?.total || 0;
+  const btnP = document.getElementById("product-tab-btn-products");
+  const btnO = document.getElementById("product-tab-btn-other");
+  if (btnP) btnP.textContent = `產品線相關評論（${productsTotal.toLocaleString()} 則）`;
+  if (btnO) btnO.textContent = `其他評論（${otherTotal.toLocaleString()} 則）`;
+}
+
+// ── 其他 summary strip ────────────────────────────────────────────────
+
+function _renderOtherSummaryStrip() {
+  const strip = document.getElementById("other-summary-strip");
+  if (!strip || !_aggregatedByProduct) return;
+  const agg = _aggregatedByProduct["其他"] || {};
+  const total = agg.total || 0;
+  if (!total) { strip.style.display = "none"; return; }
+  const lowPct  = total ? ((agg.low  / total) * 100).toFixed(1) : "0.0";
+  const midPct  = total ? ((agg.mid  / total) * 100).toFixed(1) : "0.0";
+  const highPct = total ? ((agg.high / total) * 100).toFixed(1) : "0.0";
+  strip.style.display = "flex";
+  strip.innerHTML = `
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;font-size:0.8rem">
+      <span style="color:var(--text-secondary)">共 <strong style="color:var(--text-primary)">${total.toLocaleString()}</strong> 則評論</span>
+      <span style="color:#dc2626">低評 1-2★: <strong>${agg.low || 0}</strong> 則 (${lowPct}%)</span>
+      <span style="color:#d97706">中評 3★: <strong>${agg.mid || 0}</strong> 則 (${midPct}%)</span>
+      <span style="color:#16a34a">高評 4-5★: <strong>${agg.high || 0}</strong> 則 (${highPct}%)</span>
+    </div>`;
 }
 
 // ── Bank select ───────────────────────────────────────────────────────
@@ -269,9 +315,8 @@ function _selectProduct(cat) {
     _filteredReviews = null;
     _currentPage = 1;
     if (_chartBar) { _chartBar.destroy(); _chartBar = null; }
-    const titleEl = document.getElementById("product-bar-title");
-    if (titleEl) titleEl.textContent = "請選擇產品線";
     if (reviewCard) reviewCard.style.display = "none";
+    _renderBarChart();
   } else {
     _selectedProduct = cat;
     _selectedStarGroup = null;
@@ -287,8 +332,80 @@ function _selectProduct(cat) {
 
 function _renderBarChart() {
   const canvas = document.getElementById("chart-product-bar");
-  if (!canvas || !_selectedProduct) return;
+  if (!canvas) return;
 
+  const title = document.getElementById("product-bar-title");
+
+  if (!_selectedProduct) {
+    // Overview: aggregated low/mid/high across all product lines excluding 其他
+    const totalLow  = PRODUCT_CATEGORIES.reduce((s, cat) => s + (_aggregatedByProduct[cat]?.low  || 0), 0);
+    const totalMid  = PRODUCT_CATEGORIES.reduce((s, cat) => s + (_aggregatedByProduct[cat]?.mid  || 0), 0);
+    const totalHigh = PRODUCT_CATEGORIES.reduce((s, cat) => s + (_aggregatedByProduct[cat]?.high || 0), 0);
+
+    const starGroupKeys = ["low", "mid", "high"];
+    const labels = ["低評 1-2★", "中評 3★", "高評 4-5★"];
+    const values = [totalLow, totalMid, totalHigh];
+    const baseColors   = ["#fca5a5", "#fcd34d", "#86efac"];
+    const activeColors = ["#dc2626", "#d97706", "#16a34a"];
+    const borderColors = ["#dc2626", "#d97706", "#16a34a"];
+    const bgColors = baseColors.map((c, i) =>
+      _selectedStarGroup === starGroupKeys[i] ? activeColors[i] : c
+    );
+
+    const barData = {
+      labels,
+      datasets: [{
+        label: "全部產品",
+        data: values,
+        backgroundColor: bgColors,
+        borderColor: borderColors,
+        borderWidth: 2,
+        borderRadius: 4,
+      }],
+    };
+
+    const options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => ` ${ctx.raw} 則` } },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: "#334155", font: { size: 12 } } },
+        y: { beginAtZero: true, ticks: { precision: 0, color: "#94a3b8" }, grid: { color: "#e2e8f0" } },
+      },
+      onClick: (_e, elements) => {
+        if (!elements.length) {
+          _selectedStarGroup = null;
+        } else {
+          const key = starGroupKeys[elements[0].index];
+          _selectedStarGroup = _selectedStarGroup === key ? null : key;
+        }
+        _currentPage = 1;
+        _renderBarChart();
+        if (_selectedStarGroup !== null) {
+          _renderAllProductsReviewList();
+        } else {
+          const card = document.getElementById("product-reviews-card");
+          if (card) card.style.display = "none";
+        }
+      },
+    };
+
+    if (title) title.textContent = "全部產品（扣除其他評論類別）";
+
+    if (_chartBar) {
+      _chartBar.data = barData;
+      _chartBar.options = options;
+      _chartBar.update();
+    } else {
+      _chartBar = new Chart(canvas, { type: "bar", data: barData, options });
+    }
+    return;
+  }
+
+  // Single product: show low/mid/high rating breakdown
   const agg = _aggregatedByProduct[_selectedProduct] || {};
   const starGroupKeys = ["low", "mid", "high"];
   const labels = ["低評 1-2★", "中評 3★", "高評 4-5★"];
@@ -340,7 +457,6 @@ function _renderBarChart() {
     },
   };
 
-  const title = document.getElementById("product-bar-title");
   if (title) title.textContent = `「${_selectedProduct}」評分分佈`;
 
   if (_chartBar) {
@@ -462,6 +578,93 @@ function _getPaginationRange(current, total) {
   return pages;
 }
 
+// ── All-products review list (no product selected) ────────────────────
+
+function _renderAllProductsReviewList() {
+  const card = document.getElementById("product-reviews-card");
+  if (!card) return;
+
+  const { selectedBanks, platform } = _lastGlobalFilterState || {};
+  let rows = _productReviews.filter((r) => {
+    if (!PRODUCT_CATEGORIES.includes(r.product_line)) return false;
+    if (selectedBanks?.length && !selectedBanks.includes(r.bank)) return false;
+    if (_selectedProductBank !== "all" && r.bank !== _selectedProductBank) return false;
+    if (platform && platform !== "all" && r.platform !== platform) return false;
+    return true;
+  });
+
+  rows.sort((a, b) => num(a.rating) - num(b.rating) || (b.date || "").localeCompare(a.date || ""));
+
+  if (_selectedStarGroup) {
+    rows = rows.filter((r) => {
+      const rating = num(r.rating);
+      if (_selectedStarGroup === "low")  return rating <= 2;
+      if (_selectedStarGroup === "mid")  return rating === 3;
+      if (_selectedStarGroup === "high") return rating >= 4;
+      return true;
+    });
+  }
+
+  card.style.display = "block";
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  if (_currentPage > totalPages) _currentPage = totalPages;
+
+  const titleEl  = document.getElementById("product-reviews-title");
+  const totalEl  = document.getElementById("product-reviews-total");
+  const badgeEl  = document.getElementById("product-star-group-badge");
+  const closeBtn = document.getElementById("product-reviews-close");
+
+  if (titleEl) titleEl.textContent = "全部產品線相關評論";
+  if (totalEl) totalEl.textContent = `共 ${rows.length} 則`;
+  if (badgeEl) {
+    const starLabels = { low: "低評 1-2★", mid: "中評 3★", high: "高評 4-5★" };
+    badgeEl.textContent = _selectedStarGroup ? starLabels[_selectedStarGroup] : "";
+    badgeEl.style.display = _selectedStarGroup ? "inline" : "none";
+  }
+  if (closeBtn) {
+    closeBtn.onclick = () => {
+      _selectedStarGroup = null;
+      card.style.display = "none";
+      _renderBarChart();
+    };
+  }
+
+  const pageRows = rows.slice((_currentPage - 1) * PAGE_SIZE, _currentPage * PAGE_SIZE);
+  const tbody = document.getElementById("product-reviews-tbody");
+  if (!tbody) return;
+
+  if (!pageRows.length) {
+    const msg = _productReviews.length === 0 ? "評論資料載入中..." : "無符合條件的評論";
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-sm" style="color:var(--text-secondary)">${msg}</td></tr>`;
+  } else {
+    tbody.innerHTML = pageRows.map((r) => {
+      const rating = num(r.rating);
+      const stars = "★".repeat(rating) + "☆".repeat(5 - rating);
+      const starColor = rating <= 2 ? "#dc2626" : rating === 3 ? "#d97706" : "#16a34a";
+      const platformIcon = r.platform === "App Store" ? "🍎" : "🤖";
+      const isYuanta = r.bank === YUANTA;
+      const catColor = PRODUCT_COLORS[r.product_line] || "#94a3b8";
+      const reviewText = (r.review || "").trim();
+      const short = reviewText.slice(0, 120);
+      const expandHtml = reviewText.length > 120
+        ? `<details style="display:inline"><summary style="color:var(--accent);cursor:pointer;font-size:0.75rem;margin-left:0.25rem">展開</summary><span style="color:var(--text-primary)"> ${reviewText.slice(120)}</span></details>`
+        : "";
+      return `<tr style="background:${isYuanta ? "#fffbeb" : "#ffffff"}">
+        <td class="px-3 py-2 text-xs whitespace-nowrap" style="color:var(--text-secondary)">${(r.date || "").slice(0, 10)}</td>
+        <td class="px-3 py-2 text-sm">${platformIcon} <span style="${isYuanta ? "color:var(--accent);font-weight:600" : "color:var(--text-primary)"}">${r.bank}</span></td>
+        <td class="px-3 py-2 text-sm whitespace-nowrap" style="color:${starColor}">${stars}</td>
+        <td class="px-3 py-2 text-xs whitespace-nowrap">
+          <span style="padding:0.15rem 0.5rem;border-radius:999px;border:1.5px solid ${catColor};color:${catColor};font-weight:600;font-size:0.72rem">${r.product_line || ""}</span>
+        </td>
+        <td class="px-3 py-2 text-sm max-w-sm" style="color:var(--text-primary)">${short}${expandHtml}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  _renderListPagination(totalPages, _currentPage, (p) => { _currentPage = p; _renderAllProductsReviewList(); });
+}
+
 // ── "其他" tab bar chart ───────────────────────────────────────────────
 
 function _renderOtherBarChart() {
@@ -555,7 +758,7 @@ function _renderOtherReviewList() {
     });
   }
 
-  card.style.display = "block";
+  card.style.display = "flex";
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   if (_otherCurrentPage > totalPages) _otherCurrentPage = totalPages;
@@ -614,6 +817,17 @@ function _renderOtherReviewList() {
   _renderListPagination(totalPages, _otherCurrentPage, (p) => { _otherCurrentPage = p; _renderOtherReviewList(); });
 }
 
+// ── Other-tab column height sync ──────────────────────────────────────
+
+function _matchOtherColumnHeights() {
+  requestAnimationFrame(() => {
+    const leftCard = document.querySelector("#product-tab-other .chart-card");
+    const slot = document.getElementById("other-review-slot");
+    if (!leftCard || !slot) return;
+    slot.style.height = leftCard.offsetHeight + "px";
+  });
+}
+
 // ── Tab switcher (exported, exposed via window in index.html) ──────────
 
 export function switchProductTab(tab) {
@@ -623,14 +837,30 @@ export function switchProductTab(tab) {
   const btnP = document.getElementById("product-tab-btn-products");
   const btnO = document.getElementById("product-tab-btn-other");
 
+  const reviewCard = document.getElementById("product-reviews-card");
+  const slot = document.getElementById("other-review-slot");
+  const tabOther = document.getElementById("product-tab-other");
+
   if (tab === "products") {
+    // Move review card back to original position (after tab containers)
+    if (reviewCard && tabOther && reviewCard.parentElement !== tabOther.parentElement) {
+      tabOther.insertAdjacentElement("afterend", reviewCard);
+      reviewCard.style.marginTop = "";
+      reviewCard.style.height = "";
+      reviewCard.style.flex = "";
+      reviewCard.style.flexDirection = "";
+      const overflowDiv = reviewCard.querySelector(".overflow-x-auto");
+      if (overflowDiv) { overflowDiv.style.flex = ""; overflowDiv.style.overflowY = ""; }
+    }
+    if (slot) slot.style.height = "";
     if (productsPanel) productsPanel.style.display = "";
     if (otherPanel)    otherPanel.style.display = "none";
     if (btnP) { btnP.style.color = "var(--accent)"; btnP.style.borderBottomColor = "var(--accent)"; }
     if (btnO) { btnO.style.color = "var(--text-secondary)"; btnO.style.borderBottomColor = "transparent"; }
-    const reviewCard = document.getElementById("product-reviews-card");
     if (_selectedProduct) {
       _renderReviewList();
+    } else if (_selectedStarGroup !== null) {
+      _renderAllProductsReviewList();
     } else if (reviewCard) {
       reviewCard.style.display = "none";
     }
@@ -639,8 +869,24 @@ export function switchProductTab(tab) {
     if (otherPanel)    otherPanel.style.display = "";
     if (btnP) { btnP.style.color = "var(--text-secondary)"; btnP.style.borderBottomColor = "transparent"; }
     if (btnO) { btnO.style.color = "var(--accent)"; btnO.style.borderBottomColor = "var(--accent)"; }
-    if (_aggregatedByProduct) _renderOtherBarChart();
-    const reviewCard = document.getElementById("product-reviews-card");
+    // Move review card into the right-column slot
+    if (slot && reviewCard && reviewCard.parentElement !== slot) {
+      slot.appendChild(reviewCard);
+      reviewCard.style.marginTop = "0";
+    }
+    // Pin slot height to left card height; card fills slot with scrollable table
+    if (slot) slot.style.cssText = "flex:1;min-width:0;overflow:hidden";
+    if (reviewCard) {
+      reviewCard.style.height = "100%";
+      reviewCard.style.flexDirection = "column";
+      const overflowDiv = reviewCard.querySelector(".overflow-x-auto");
+      if (overflowDiv) { overflowDiv.style.flex = "1"; overflowDiv.style.overflowY = "auto"; }
+    }
+    if (_aggregatedByProduct) {
+      _renderOtherBarChart();
+      _renderOtherSummaryStrip();
+      _matchOtherColumnHeights();
+    }
     if (reviewCard) reviewCard.style.display = "none";
   }
 }

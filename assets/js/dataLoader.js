@@ -70,6 +70,16 @@ export async function loadReviews() {
   return fetchTab("reviews");
 }
 
+// Load pain keyword summary (background load for word cloud section)
+export async function loadPainKeywordData() {
+  return fetchTab("painKeywordSummary").catch(() => []);
+}
+
+// Load pain reviews (full review rows with keywords, category, product_line, reply info)
+export async function loadPainReviews() {
+  return fetchTab("painReviews").catch(() => []);
+}
+
 // Load version history
 export async function loadVersions() {
   return fetchTab("versions");

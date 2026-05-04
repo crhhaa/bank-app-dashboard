@@ -14,6 +14,20 @@ const VOICE_CATEGORIES = [
 
 const MAX_RADAR_BANKS = 5; // 元大 + 最多4家競品
 
+// Dash patterns for each radar bank slot (index 0 = Yuanta, always solid)
+const RADAR_DASH_PATTERNS = [[], [], [8, 4], [3, 4], [12, 4, 3, 4]];
+
+// Sqrt-based spread transform: stretches low values apart for better visual separation
+function _sqrtTransform(v, max) {
+  if (max <= 0 || v <= 0) return 0;
+  return Math.sqrt(v / max) * max;
+}
+
+function _sqrtInverse(v, max) {
+  if (max <= 0 || v <= 0) return 0;
+  return Math.pow(v / max, 2) * max;
+}
+
 let chartNeg = null;
 let chartPos = null;
 let _voiceSummary = [];
@@ -138,17 +152,49 @@ function renderRadarCharts() {
     return VOICE_CATEGORIES.map((c) => byCategory[c] || 0);
   }
 
-  function buildDatasets(scoreField) {
-    return _selectedRadarBanks.map((bank) => {
+  // Compute raw scores for all selected banks, then derive a tight dynamic max
+  function _rawScoresByBank(scoreField) {
+    const map = {};
+    _selectedRadarBanks.forEach(bank => { map[bank] = getScores(bank, scoreField); });
+    return map;
+  }
+
+  function _computeDynamicMax(rawByBank) {
+    let maxVal = 0;
+    Object.values(rawByBank).forEach(scores => scores.forEach(v => { if (v > maxVal) maxVal = v; }));
+    if (maxVal <= 10) return 15;
+    if (maxVal <= 20) return 25;
+    if (maxVal <= 30) return 40;
+    if (maxVal <= 50) return 60;
+    if (maxVal <= 70) return 80;
+    return 100;
+  }
+
+  function _niceStepSize(max) {
+    if (max <= 15) return 5;
+    if (max <= 40) return 10;
+    if (max <= 60) return 15;
+    return 25;
+  }
+
+  // Build datasets with sqrt-spread transform so clustered low values are visually separated.
+  // rawData is stored on each dataset so tooltips always show original percentages.
+  function buildDatasets(rawByBank, dynMax) {
+    return _selectedRadarBanks.map((bank, idx) => {
       const isYuanta = bank === YUANTA;
       const color = BANK_COLORS[bank] || "#94a3b8";
+      const rawData = rawByBank[bank];
+      const displayData = rawData.map(v => _sqrtTransform(v, dynMax));
       return {
         label: bank,
-        data: getScores(bank, scoreField),
+        data: displayData,
+        rawData,
         borderColor: color,
-        backgroundColor: color + (isYuanta ? "22" : "10"),
-        borderWidth: isYuanta ? 3 : 1.5,
-        pointRadius: isYuanta ? 4 : 3,
+        backgroundColor: color + (isYuanta ? "33" : "18"),
+        borderWidth: isYuanta ? 3 : 2,
+        borderDash: RADAR_DASH_PATTERNS[idx % RADAR_DASH_PATTERNS.length],
+        pointRadius: isYuanta ? 5 : 3,
+        pointHoverRadius: isYuanta ? 7 : 5,
         pointBackgroundColor: color,
       };
     });
@@ -158,84 +204,95 @@ function renderRadarCharts() {
   function renderRadarLegend(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
-    container.innerHTML = _selectedRadarBanks.map(bank => {
+    const dashSvg = (idx) => {
+      const pat = RADAR_DASH_PATTERNS[idx % RADAR_DASH_PATTERNS.length];
+      if (!pat || pat.length === 0) return "";
+      const dashStr = pat.join(",");
+      return `<svg width="18" height="6" style="vertical-align:middle;margin-right:2px"><line x1="0" y1="3" x2="18" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="${dashStr}"/></svg>`;
+    };
+    container.innerHTML = _selectedRadarBanks.map((bank, idx) => {
       const color = BANK_COLORS[bank] || "#94a3b8";
       const logoSrc = BANK_LOGOS[bank] || "";
       return `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;font-size:11px;color:#64748b;border-bottom:2px solid ${color};">
         <img src="${logoSrc}" width="13" height="13" style="object-fit:contain;border-radius:2px;" onerror="this.style.display='none'">
-        ${bank}
+        ${dashSvg(idx)}${bank}
       </span>`;
     }).join("");
   }
 
-  const radarOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`,
+  function buildRadarOptions(dynMax) {
+    const stepSize = _niceStepSize(dynMax);
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            // Show original (un-transformed) value from rawData
+            label: (ctx) => {
+              const raw = ctx.dataset.rawData?.[ctx.dataIndex];
+              return ` ${ctx.dataset.label}: ${(raw ?? 0).toFixed(1)}%`;
+            },
+          },
         },
       },
-    },
-    scales: {
-      r: {
-        min: 0,
-        max: 100,
-        ticks: { stepSize: 25, color: "#94a3b8", font: { size: 9 }, backdropColor: "transparent" },
-        grid: { color: "#e2e8f0" },
-        angleLines: { color: "#e2e8f0" },
-        pointLabels: {
-          color: "#334155",
-          font: { size: 11, weight: "500" },
-          callback: (label) => label,
+      scales: {
+        r: {
+          min: 0,
+          max: dynMax,
+          ticks: {
+            stepSize,
+            color: "#64748b",
+            font: { size: 10 },
+            backdropColor: "transparent",
+            // Back-transform tick position to original percentage for label
+            callback: (v) => _sqrtInverse(v, dynMax).toFixed(0) + "%",
+          },
+          grid: { color: "#cbd5e1", lineWidth: 1.5 },
+          angleLines: { color: "#cbd5e1", lineWidth: 1.5 },
+          pointLabels: {
+            color: "#334155",
+            font: { size: 11, weight: "500" },
+            callback: (label) => label,
+          },
         },
       },
-    },
-    onClick: (e, elements, chartInstance) => {
-      // Detect which category label was clicked via nearest angle
-      const labels = chartInstance.data.labels;
-      if (!labels || labels.length === 0) return;
-      const rect = chartInstance.canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left - chartInstance.chartArea.width / 2 - chartInstance.chartArea.left;
-      const y = e.clientY - rect.top - chartInstance.chartArea.height / 2 - chartInstance.chartArea.top;
-      const angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
-      const normalised = ((angle % 360) + 360) % 360;
-      const step = 360 / labels.length;
-      const idx = Math.round(normalised / step) % labels.length;
-      const category = labels[idx];
-      if (category && VOICE_CATEGORIES.includes(category)) {
-        selectCategory(category);
-      }
-    },
-  };
-
-  // Negative radar
-  const negCanvas = document.getElementById("chart-voice-neg");
-  if (negCanvas) {
-    const negData = { labels: VOICE_CATEGORIES, datasets: buildDatasets("negative_pct") };
-    if (chartNeg) {
-      chartNeg.data = negData;
-      chartNeg.update();
-    } else {
-      chartNeg = new Chart(negCanvas, { type: "radar", data: negData, options: radarOptions });
-    }
-    renderRadarLegend("radar-neg-legend");
+      onClick: (e, elements, chartInstance) => {
+        const labels = chartInstance.data.labels;
+        if (!labels || labels.length === 0) return;
+        const rect = chartInstance.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left - chartInstance.chartArea.width / 2 - chartInstance.chartArea.left;
+        const y = e.clientY - rect.top - chartInstance.chartArea.height / 2 - chartInstance.chartArea.top;
+        const angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
+        const normalised = ((angle % 360) + 360) % 360;
+        const step = 360 / labels.length;
+        const idx = Math.round(normalised / step) % labels.length;
+        const category = labels[idx];
+        if (category && VOICE_CATEGORIES.includes(category)) {
+          selectCategory(category);
+        }
+      },
+    };
   }
 
-  // Positive radar
-  const posCanvas = document.getElementById("chart-voice-pos");
-  if (posCanvas) {
-    const posData = { labels: VOICE_CATEGORIES, datasets: buildDatasets("positive_pct") };
-    if (chartPos) {
-      chartPos.data = posData;
-      chartPos.update();
-    } else {
-      chartPos = new Chart(posCanvas, { type: "radar", data: posData, options: radarOptions });
-    }
-    renderRadarLegend("radar-pos-legend");
+  function _renderOneRadar(canvasId, scoreField, chartRef) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return chartRef;
+    const rawByBank = _rawScoresByBank(scoreField);
+    const dynMax = _computeDynamicMax(rawByBank);
+    const datasets = buildDatasets(rawByBank, dynMax);
+    const chartData = { labels: VOICE_CATEGORIES, datasets };
+    // Always recreate so dynMax-based tick/tooltip closures stay fresh
+    if (chartRef) { chartRef.destroy(); }
+    return new Chart(canvas, { type: "radar", data: chartData, options: buildRadarOptions(dynMax) });
   }
+
+  chartNeg = _renderOneRadar("chart-voice-neg", "negative_pct", chartNeg);
+  renderRadarLegend("radar-neg-legend");
+
+  chartPos = _renderOneRadar("chart-voice-pos", "positive_pct", chartPos);
+  renderRadarLegend("radar-pos-legend");
 }
 
 // ── Category pills ────────────────────────────────────────────────────
