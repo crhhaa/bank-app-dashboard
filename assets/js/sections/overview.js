@@ -126,14 +126,6 @@ export function renderOverview(summaryBank, summaryMonthly, { selectedBanks, pla
 
   const ratingCards = [
     {
-      label: "本月平均評論評分",
-      value: latestRating.toFixed(2),
-      unit: "/ 5",
-      delta: ratingDelta,
-      compare: compAvgRating ? `競品均 ${compAvgRating.toFixed(2)}` : "",
-      accent: "blue",
-    },
-    {
       label: "iOS 商店總評分",
       value: iosOverallAvg != null ? iosOverallAvg.toFixed(1) : "—",
       unit: iosOverallAvg != null ? "/ 5" : "",
@@ -172,6 +164,14 @@ export function renderOverview(summaryBank, summaryMonthly, { selectedBanks, pla
   ];
 
   const opsCards = [
+    {
+      label: "本月平均評論評分",
+      value: latestRating.toFixed(2),
+      unit: "/ 5",
+      delta: ratingDelta,
+      compare: compAvgRating ? `競品均 ${compAvgRating.toFixed(2)}` : "",
+      accent: "blue",
+    },
     {
       label: "開發者本月回覆率",
       value: (yuantaStats.replyRate * 100).toFixed(1) + "%",
