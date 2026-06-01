@@ -41,10 +41,8 @@ export function sheetUrl(gid) {
 
 // All banks in display order
 export const ALL_BANKS = [
-  "元大銀行", "台灣銀行", "土地銀行", "合作金庫", "第一銀行", "華南銀行",
-  "彰化銀行", "台北富邦", "國泰世華", "玉山銀行", "台新銀行", "中國信託",
-  "兆豐銀行", "台灣企銀", "永豐銀行", "凱基銀行", "星展銀行", "渣打銀行",
-  "遠東商銀"
+  "元大銀行", "台北富邦", "台新銀行", "國泰世華",
+  "中國信託", "玉山銀行", "永豐銀行", "凱基銀行"
 ];
 
 export const YUANTA = "元大銀行";
@@ -52,45 +50,23 @@ export const YUANTA = "元大銀行";
 // Bank logo local paths (relative to dashboard/index.html)
 export const BANK_LOGOS = {
   "元大銀行": "assets/logos/yuanta.png",
-  "台灣銀行": "assets/logos/bot.png",
-  "土地銀行": "assets/logos/landbank.png",
-  "合作金庫": "assets/logos/tcb.png",
-  "第一銀行": "assets/logos/firstbank.png",
-  "華南銀行": "assets/logos/hncb.png",
-  "彰化銀行": "assets/logos/bankchb.png",
   "台北富邦": "assets/logos/fubon.png",
-  "國泰世華": "assets/logos/cathaybk.png",
-  "玉山銀行": "assets/logos/esunbank.png",
   "台新銀行": "assets/logos/taishin.png",
+  "國泰世華": "assets/logos/cathaybk.png",
   "中國信託": "assets/logos/ctbc.png",
-  "兆豐銀行": "assets/logos/megabank.png",
-  "台灣企銀": "assets/logos/tbb.png",
+  "玉山銀行": "assets/logos/esunbank.png",
   "永豐銀行": "assets/logos/sinopac.png",
   "凱基銀行": "assets/logos/kgibank.png",
-  "星展銀行": "assets/logos/dbs.png",
-  "渣打銀行": "assets/logos/sc.png",
-  "遠東商銀": "assets/logos/feib.png",
 };
 
 // Colors for banks in charts — derived from each bank's logo
 export const BANK_COLORS = {
   "元大銀行": "#F7941D",  // 元大橘（維持）
-  "台灣銀行": "#8C0028",  // from logo
-  "土地銀行": "#00503C",  // from logo
-  "合作金庫": "#007864",  // from logo
-  "第一銀行": "#785014",  // from logo
-  "華南銀行": "#DC0000",  // from logo
-  "彰化銀行": "#DC0000",  // from logo
   "台北富邦": "#008C8C",  // from logo
-  "國泰世華": "#00783C",  // from logo
-  "玉山銀行": "#64A0A0",  // from logo
   "台新銀行": "#C80000",  // from logo
+  "國泰世華": "#00783C",  // from logo
   "中國信託": "#007878",  // from logo
-  "兆豐銀行": "#A07814",  // from logo
-  "台灣企銀": "#DC5000",  // from logo
+  "玉山銀行": "#64A0A0",  // from logo
   "永豐銀行": "#DC1400",  // from logo
   "凱基銀行": "#002878",  // from logo
-  "星展銀行": "#DC1414",  // from logo
-  "渣打銀行": "#0064DC",  // from logo
-  "遠東商銀": "#B42814",  // from logo
 };
